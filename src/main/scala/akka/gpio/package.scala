@@ -1,24 +1,29 @@
 package akka
 
 import com.pi4j.io.gpio.event.{GpioPinDigitalStateChangeEvent, GpioPinListener, GpioPinListenerDigital}
-import com.pi4j.io.gpio.{GpioPinDigitalInput, GpioPinDigitalOutput}
+import com.pi4j.io.gpio.{GpioPinDigitalInput, GpioPinDigitalOutput, Pin}
 
 package object gpio {
 
-  implicit def DigitalListenerFunction(f: GpioPinDigitalStateChangeEvent => Unit): GpioPinListener =
-    new GpioPinListenerDigital {
-      def handleGpioPinDigitalStateChangeEvent(e: GpioPinDigitalStateChangeEvent): Unit = f(e)
+    trait ModeEvent
+
+    trait PiModel {
+        val pins: List[Pin]
     }
 
-  implicit def DigitalInput(impl: GpioPinDigitalInput): GpioDigitalInput = new GpioDigitalInput {
-  }
+    implicit def DigitalListenerFunction(f: GpioPinDigitalStateChangeEvent => Unit): GpioPinListener = {
+        new GpioPinListenerDigital {
+            def handleGpioPinDigitalStateChangeEvent(e: GpioPinDigitalStateChangeEvent): Unit = f(e)
+        }
+    }
 
-  implicit def DigitalOutput(impl: GpioPinDigitalOutput): GpioDigitalOutput = new GpioDigitalOutput {
-  }
+    implicit def DigitalInput(impl: GpioPinDigitalInput): GpioDigitalInput = new GpioDigitalInput {}
 
-  trait Device
+    implicit def DigitalOutput(impl: GpioPinDigitalOutput): GpioDigitalOutput = new GpioDigitalOutput {}
 
-  trait GpioDigitalInput
+    trait Device
 
-  trait GpioDigitalOutput
+    trait GpioDigitalInput
+
+    trait GpioDigitalOutput
 }

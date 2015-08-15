@@ -1,47 +1,44 @@
 package pi.akka
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, Props}
 import akka.gpio._
 import com.pi4j.io.gpio.PinMode
 import com.pi4j.io.gpio.event._
 import com.pi4j.io.gpio.impl.GpioPinImpl
 
-import scala.collection.mutable
-
 object Gpio {
-  def props(gpio: GpioPinImpl): Props = Props(new Gpio(gpio))
+    def props(gpio: GpioPinImpl): Props = Props(new Gpio(gpio))
 }
 
 class Gpio(val gpio: GpioPinImpl) extends Actor {
-  val subscribers: collection.mutable.Set[ActorRef] = new mutable.HashSet[ActorRef]
-
-  def digitalIn: Receive = {
-    case DigitalRead() => sender() ! gpio.isHigh
-    case Reset() => reset()
-  }
-
-  def digitalOut: Receive = {
-    case DigitalWrite(v) => gpio.setState(v)
-    case Reset() => reset()
-  }
-
-  def receive: Receive = {
-    case AsDigitalIn() => {
-      gpio.export(PinMode.DIGITAL_INPUT)
-      gpio.addListener { e: GpioPinDigitalStateChangeEvent => context.parent ! DigitalEvent(e.getState) }
-      context.become(digitalIn)
+    def digitalIn: Receive = {
+        case DigitalRead(_) => sender() ! gpio.isHigh
+        case Reset(_) => reset()
+        case Status() => println(gpio.getPin)
     }
-    case AsDigitalOut() => {
-      gpio.export(PinMode.DIGITAL_OUTPUT)
-      gpio.removeAllListeners()
-      context.become(digitalOut)
+
+    def digitalOut: Receive = {
+        case DigitalWrite(_, s) => gpio.setState(s)
+        case Reset(_) => reset()
+        case Status() => println(gpio.getPin)
     }
-    case Subscribe() => subscribe(sender())
-  }
 
-  def subscribe(actor: ActorRef): Unit = subscribers.add(actor)
+    def receive: Receive = {
+        case AsDigitalIn(_) => {
+            gpio.export(PinMode.DIGITAL_INPUT)
+            gpio.addListener(stateChangeListener)
+            context.become(digitalIn)
+        }
+        case AsDigitalOut(_) => {
+            gpio.export(PinMode.DIGITAL_OUTPUT)
+            context.become(digitalOut)
+        }
+    }
 
-  def unsubscribe(actor: ActorRef): Unit = subscribers.remove(actor)
+    lazy val stateChangeListener = { e: GpioPinDigitalStateChangeEvent => context.parent ! DigitalEvent(gpio.getPin, e.getState) }
 
-  def reset(): Unit = context.become(receive)
+    def reset(): Unit = {
+        gpio.removeListener(stateChangeListener)
+        context.become(receive)
+    }
 }

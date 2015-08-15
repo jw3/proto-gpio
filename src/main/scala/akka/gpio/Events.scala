@@ -1,23 +1,23 @@
 package pi.akka
 
-import akka.gpio.api.ModeEvent
-import com.pi4j.io.gpio.PinState
+import akka.gpio.ModeEvent
+import com.pi4j.io.gpio.{Pin, PinState}
 
 
-case class Reset() extends ModeEvent
+case class Reset(pin: Pin) extends ModeEvent
 
-case class AsDigitalIn() extends ModeEvent
+case class AsDigitalIn(pin: Pin) extends ModeEvent
 
-case class AsDigitalOut() extends ModeEvent
+case class AsDigitalOut(pin: Pin) extends ModeEvent
 
+case class DigitalEvent(pin: Pin, value: PinState)
 
-case class DigitalEvent(state: PinState)
+case class DigitalWrite(pin: Pin, value: PinState)
 
-case class DigitalWrite(hi: Boolean)
+case class DigitalRead(pin: Pin)
 
-case class DigitalRead()
+case class Subscribe(pin: Pin)
 
+case class Unsubscribe(pin: Pin)
 
-case class Subscribe()
-
-case class Unsubscribe()
+case class Status()
