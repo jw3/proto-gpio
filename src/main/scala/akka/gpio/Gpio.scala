@@ -14,13 +14,11 @@ class Gpio(val gpio: GpioPinImpl) extends Actor {
     def digitalIn: Receive = {
         case DigitalRead(_) => sender() ! gpio.isHigh
         case Reset(_) => reset()
-        case Status() => println(gpio.getPin)
     }
 
     def digitalOut: Receive = {
         case DigitalWrite(_, s) => gpio.setState(s)
         case Reset(_) => reset()
-        case Status() => println(gpio.getPin)
     }
 
     def receive: Receive = {

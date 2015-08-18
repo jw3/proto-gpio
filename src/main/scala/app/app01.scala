@@ -3,6 +3,7 @@ package app
 import akka.actor.{Actor, ActorSystem, Props}
 import akka.gpio.Models
 import com.pi4j.io.gpio.{PinState, RaspiPin}
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import pi.akka._
 
@@ -15,7 +16,18 @@ object app01 extends App {
 
     val pi = Pi(Models.bRev2)
 
-    pi ! AsDigitalOut(RaspiPin.GPIO_00)
+    val config = ConfigFactory.parseString(
+        """
+          |pins = [
+          | {
+          |     number = 0
+          |     mode = "digital"
+          |     direction = "out"
+          | }
+          |]
+        """.stripMargin)
+
+    pi ! Configure(config)
     pi ! DigitalWrite(RaspiPin.GPIO_00, PinState.HIGH)
 
     val listener = system.actorOf(Props[Listener])

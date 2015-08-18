@@ -1,9 +1,10 @@
 package pi.akka
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor._
 import akka.gpio.PiModel
 import com.pi4j.io.gpio._
 import com.pi4j.io.gpio.impl.GpioPinImpl
+import com.typesafe.config.Config
 
 import scala.collection.mutable
 
@@ -20,14 +21,15 @@ class Pi(m: PiModel, c: GpioController, p: RaspiGpioProvider) extends Actor {
     // init
     val gpio = m.pins.map { pin => pin -> context.actorOf(Gpio.props(new GpioPinImpl(c, p, pin))) }.toMap
 
+    def configure(conf: Config): Unit = {
+    }
+
     def receive: Receive = {
-        case e @ AsDigitalIn(p) => gpio(p) ! e
-        case e @ AsDigitalOut(p) => gpio(p) ! AsDigitalOut
-        case DigitalEvent(p, v) =>
+        case Configure(c) => configure(c)
+        case e @ DigitalEvent(p, v) => subscribers(p).foreach(_ ! e)
         case DigitalWrite(p, v) => gpio(p) forward v
         case Subscribe(p) => subscribers.addBinding(p, sender())
         case Unsubscribe(p) => subscribers.removeBinding(p, sender())
-        case Status() => context.children.foreach(_ ! Status())
         case _ =>
     }
 }
