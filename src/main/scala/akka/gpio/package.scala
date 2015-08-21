@@ -5,6 +5,8 @@ import com.pi4j.io.gpio.{GpioPinDigitalInput, GpioPinDigitalOutput, Pin}
 
 package object gpio {
 
+    trait Pi
+
     trait ModeEvent
 
     trait PiModel {

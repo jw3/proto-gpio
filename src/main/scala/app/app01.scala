@@ -1,31 +1,21 @@
 package app
 
 import akka.actor.{Actor, ActorSystem, Props}
+import akka.gpio.Conf.Directions.output
+import akka.gpio.Conf._
 import akka.gpio.Models
 import com.pi4j.io.gpio.{PinState, RaspiPin}
-import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import pi.akka._
 
-/**
- * Created by wassj on 8/12/2015.
- */
-object app01 extends App {
 
+object app01 extends App {
     implicit val system = ActorSystem("app01")
 
     val pi = Pi(Models.bRev2)
-
-    val config = ConfigFactory.parseString(
-        """
-          |pins = [
-          | {
-          |     number = 0
-          |     mode = "digital"
-          |     direction = "out"
-          | }
-          |]
-        """.stripMargin)
+    val config = gpio{ pin =>
+        pin number 0 digital output
+    }
 
     pi ! Configure(config)
     pi ! DigitalWrite(RaspiPin.GPIO_00, PinState.HIGH)
