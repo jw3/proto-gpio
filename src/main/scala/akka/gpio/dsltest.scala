@@ -48,20 +48,46 @@ object dsltest {
     // pin number 3 is pwm
 
     object Layouts {
-        trait Layout extends Product
+        sealed trait Layout {
+            this: Product =>
+            val uid = productPrefix
+        }
         case object pi4j extends Layout
         case object bcom extends Layout
+
+        def from(str: String): Option[Layout] = str match {
+            case pi4j.uid => Option(pi4j)
+            case bcom.uid => Option(bcom)
+            case _ => None
+        }
     }
     object Modes {
-        trait Mode extends Product
+        sealed trait Mode {
+            this: Product =>
+            val uid = productPrefix
+        }
         case object digital extends Mode
         case object analog extends Mode
         case object pwm extends Mode
+
+        def from(cfg: Config) = cfg.getString("mode") match {
+            case digital.uid => digital
+            case analog.uid => analog
+            case pwm.uid => pwm
+        }
     }
     object Directions {
-        trait Direction extends Product
+        sealed trait Direction {
+            this: Product =>
+            val uid = productPrefix
+        }
         case object input extends Direction
         case object output extends Direction
+
+        def from(cfg: Config): Direction = cfg.getString("direction") match {
+            case input.uid => input
+            case output.uid => output
+        }
     }
     trait PinNumberBuilder {
         def number(num: Int): PinModeBuilder
@@ -102,13 +128,13 @@ object dsltest {
         def build: Config = {
             val map = collection.mutable.Map[String, AnyRef]()
             map("version") = Int.box(1)
-            map("layout") = layout.productPrefix
+            map("layout") = layout.uid
 
             val pinout = for (pin <- pins) yield {
                 val pinmap = collection.mutable.Map[String, AnyRef]()
                 pinmap("number") = Int.box(pin)
-                pinmap("mode") = modes(pin).productPrefix
-                pinmap("direction") = directions(pin).productPrefix
+                pinmap("mode") = modes(pin).uid
+                pinmap("direction") = directions(pin).uid
                 cvf.fromMap(pinmap)
             }
 
@@ -117,18 +143,28 @@ object dsltest {
         }
     }
 
-    class PinDef {
-        var number: Int = _
-        var direction: Direction = _
-        var mode: Mode = _
-    }
-
-
     def gpio(fn: PinBuilder => Unit): Config = {
         val b = new PinBuilder
         fn(b)
         b.build
     }
+
+    class DslConsumer {
+        var pinFn: PinDef => Unit = _
+
+        def pinFn(fn: PinDef => Unit): DslConsumer = {
+            pinFn = fn
+            this
+        }
+
+        def consume(conf: Config): Unit = {
+            conf.getConfigList("pins").map {
+                cfg => pinFn(PinDef(cfg.getInt("number"), Modes.from(cfg), Directions.from(cfg)))
+            }
+        }
+    }
+
+    case class PinDef(num: Int, mode: Mode, dir: Direction)
 
 
     def main(args: Array[String]) {
@@ -138,5 +174,6 @@ object dsltest {
             pin number 22 pwm
         }
         println(conf)
+        new DslConsumer().pinFn(println(_)).consume(conf)
     }
 }
