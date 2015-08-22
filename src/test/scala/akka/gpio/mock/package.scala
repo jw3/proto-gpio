@@ -1,18 +1,46 @@
-/*
 package akka.gpio
 
-import java.util.UUID
 
-import com.pi4j.io.gpio._
+import com.pi4j.io.gpio.event.PinListener
 import com.pi4j.io.gpio.impl.GpioControllerImpl
+import com.pi4j.io.gpio._
+import org.scalamock.proxy.Mock
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.{FlatSpec, Matchers}
 
-package object mock {
+// no scala mock
+// dsl to build gpioprovider and controller
+
+
+
+class MyTest extends FlatSpec with Matchers with MockFactory {
+    type Mocked[T] = Mock with T
+
+
+    "MyInterface" should "work" in {
+        val provider = stub[GpioProvider]
+        (provider.isExported _).when(RaspiPin.GPIO_00).returns(true)
+        (provider.getState _).when(RaspiPin.GPIO_00).returns(PinState.HIGH)
+
+        val controller = new GpioControllerImpl(provider) {
+            override def shutdown(): Unit = ()
+        }
+
+        val pin = controller.provisionDigitalInputPin(RaspiPin.GPIO_00, "testpin00")
+        controller.isExported(pin) shouldBe true
+        controller.getState(pin) shouldBe PinState.HIGH
+    }
+}
+
+/*
+package object mock   {
 
     lazy val mockController = new GpioControllerImpl(new MockGpioProvider)
     val x = new gpio {
         set(RaspiPin.GPIO_01)
     }
     val in = new Mode() {}
+
 
 
     /// dsl
