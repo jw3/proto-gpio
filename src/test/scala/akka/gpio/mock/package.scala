@@ -1,6 +1,7 @@
 package akka.gpio
 
 
+import akka.gpio.Conf.PinNumberBuilder
 import com.pi4j.io.gpio.event.PinListener
 import com.pi4j.io.gpio.impl.GpioControllerImpl
 import com.pi4j.io.gpio._
@@ -14,8 +15,6 @@ import org.scalatest.{FlatSpec, Matchers}
 
 
 class MyTest extends FlatSpec with Matchers with MockFactory {
-    type Mocked[T] = Mock with T
-
 
     "MyInterface" should "work" in {
         val provider = stub[GpioProvider]
@@ -30,6 +29,19 @@ class MyTest extends FlatSpec with Matchers with MockFactory {
         controller.isExported(pin) shouldBe true
         controller.getState(pin) shouldBe PinState.HIGH
     }
+
+    implicit class PinValueBuilder(b: PinNumberBuilder) {
+    }
+
+    /*
+        use a implicit class converts from PinNumberBuilder to a PinValueBuilder
+     */
+
+    // pin number 1 digital input
+    // pin number 1 value hi
+
+    // pin number 2 digital output
+    // pin number 2 value low
 }
 
 /*

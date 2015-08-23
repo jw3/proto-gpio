@@ -1,9 +1,12 @@
 package akka.gpio
 
+import akka.gpio.Conf.DigitalState.DigitalState
 import akka.gpio.Conf.Directions.Direction
 import akka.gpio.Conf.Layouts.Layout
 import akka.gpio.Conf.Modes.Mode
+import akka.gpio.Conf.Pulls.Pull
 import com.typesafe.config.Config
+import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConversions._
 
@@ -11,7 +14,11 @@ import scala.collection.JavaConversions._
  * @author wassj
  */
 object Conf {
-    case class PinDef(num: Int, mode: Mode, dir: Direction)
+    case class PinDef(num: Int,
+                      mode: Mode,
+                      dir: Direction,
+                      state: Option[AnyRef],
+                      pull: Option[Pull])
 
     def gpio(fn: PinBuilder => Unit): Config = {
         val b = new PinBuilder
@@ -21,7 +28,11 @@ object Conf {
 
     implicit class RichPins(conf: Config) {
         def pins(): Seq[PinDef] = conf.getConfigList("pins").map { cfg =>
-            PinDef(cfg.getInt("number"), Modes.from(cfg), Directions.from(cfg))
+            PinDef(cfg.getInt("number"),
+                Modes.from(cfg),
+                Directions.from(cfg),
+                InitialState.from(cfg),
+                Pulls.from(cfg))
         }
 
         def eachPin(fn: PinDef => Unit): Config = {
@@ -78,49 +89,118 @@ object Conf {
             case output.uid => output
         }
     }
+    object Pulls {
+        case object off extends Pull
+        case object up extends Pull
+        case object down extends Pull
+
+
+        sealed trait Pull {
+            this: Product =>
+            val uid = productPrefix
+        }
+
+        def from(cfg: Config): Option[Pull] = cfg.getAs[String]("pull") match {
+            case Some(off.uid) => Option(off)
+            case Some(up.uid) => Option(up)
+            case Some(down.uid) => Option(down)
+            case _ => None
+        }
+    }
+
+    object InitialState {
+        def from(cfg: Config): Option[AnyRef] = DigitalState.from(cfg).orElse {
+            if (cfg.hasPath("set")) Option(Double.box(cfg.getDouble("set")))
+            else None
+        }
+    }
+
+    object DigitalState {
+        case object hi extends DigitalState
+        case object low extends DigitalState
+
+
+        sealed trait DigitalState {
+            this: Product =>
+            val uid = productPrefix
+        }
+
+        def from(cfg: Config): Option[DigitalState] = cfg.getAs[String]("set") match {
+            case Some(hi.uid) => Option(hi)
+            case Some(low.uid) => Option(low)
+            case _ => None
+        }
+    }
 
     trait PinNumberBuilder {
         def number(num: Int): PinModeBuilder
     }
 
     trait PinModeBuilder {
-        def digital(d: Direction)
-        def analog(d: Direction)
+        def digital(d: Direction): DigitalInitializer
+        def analog(d: Direction): AnalogInitializer
         def pwm
     }
 
-    trait PinDirectionBuilder {
+    trait Initializer {
+        def pull(dir: Pull)
     }
 
-    private class PinBuilder extends PinNumberBuilder with PinModeBuilder {
+    trait DigitalInitializer extends Initializer {
+        def set(v: DigitalState): Initializer
+    }
+    trait AnalogInitializer extends Initializer {
+        def value(v: Double): Initializer
+    }
+
+
+    private class PinBuilder extends PinNumberBuilder with PinModeBuilder with DigitalInitializer with AnalogInitializer {
         import com.typesafe.config.{ConfigFactory => cf, ConfigValueFactory => cvf}
 
         var num: Int = -1
+        var layout: Layout = Layouts.pi4j
         val pins = collection.mutable.Set[Int]()
         val modes = collection.mutable.Map[Int, Mode]()
         val directions = collection.mutable.Map[Int, Direction]()
-        var layout: Layout = Layouts.pi4j
+        val values = collection.mutable.Map[Int, AnyRef]()
+        val pulls = collection.mutable.Map[Int, Pull]()
+
+        def value(v: Double): Initializer = {
+            values(num) = Double.box(v)
+            this
+        }
+
+        def pull(dir: Pull): Unit = pulls(num) = dir
 
         def number(num: Int) = {
-            // bounds check valid pin 0-53?
+            // bounds check valid pin 0-?
             this.num = num
             pins.add(num)
             this
         }
-        def digital(d: Direction) = {
+        def digital(d: Direction): DigitalInitializer = {
             modes(num) = Modes.digital
             directions(num) = d
+            this
         }
-        def analog(d: Direction) = {
+        def analog(d: Direction): AnalogInitializer = {
             modes(num) = Modes.analog
             directions(num) = d
+            this
         }
         def pwm = {
             modes(num) = Modes.pwm
             directions(num) = Directions.output
         }
 
+        def set(v: DigitalState): Initializer = {
+            values(num) = v
+            this
+        }
+
         def build: Config = {
+            num = -1
+
             val map = collection.mutable.Map[String, AnyRef]()
             map("version") = Int.box(1)
             map("layout") = layout.uid
@@ -130,6 +210,13 @@ object Conf {
                 pinmap("number") = Int.box(pin)
                 pinmap("mode") = modes(pin).uid
                 pinmap("direction") = directions(pin).uid
+                values.get(pin) foreach {
+                    _ match {
+                        case v: java.lang.Double => pinmap("set") = Double.box(v)
+                        case v: DigitalState => pinmap("set") = v.uid
+                    }
+                }
+                pulls.get(pin).foreach { v => pinmap("pull") = v.uid }
                 cvf.fromMap(pinmap)
             }
 
