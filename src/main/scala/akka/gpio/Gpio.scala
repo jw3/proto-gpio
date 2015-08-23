@@ -22,18 +22,20 @@ class Gpio(val gpio: GpioPinImpl) extends Actor {
     }
 
     def receive: Receive = {
-        case AsDigitalIn(_) => {
+        case AsDigitalIn() => {
             gpio.export(PinMode.DIGITAL_INPUT)
             gpio.addListener(stateChangeListener)
             context.become(digitalIn)
         }
-        case AsDigitalOut(_) => {
+        case AsDigitalOut() => {
             gpio.export(PinMode.DIGITAL_OUTPUT)
             context.become(digitalOut)
         }
     }
 
-    lazy val stateChangeListener = { e: GpioPinDigitalStateChangeEvent => context.parent ! DigitalEvent(gpio.getPin, e.getState) }
+    lazy val stateChangeListener = { e: GpioPinDigitalStateChangeEvent =>
+        context.parent ! DigitalEvent(gpio.getPin.getAddress, e.getState)
+    }
 
     def reset(): Unit = {
         gpio.removeListener(stateChangeListener)

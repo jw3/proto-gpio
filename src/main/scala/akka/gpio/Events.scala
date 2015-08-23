@@ -7,20 +7,20 @@ import com.typesafe.config.Config
 
 case class Configure(conf: Config)
 
-case class Reset(pin: Pin) extends ModeEvent
+case class Reset(pin: Int) extends ModeEvent
 
-case class DigitalEvent(pin: Pin, value: PinState)
+case class DigitalEvent(pin: Int, value: PinState)
 
-case class DigitalWrite(pin: Pin, value: PinState)
+case class DigitalWrite(pin: Int, value: PinState)
 
-case class DigitalRead(pin: Pin)
+case class DigitalRead(pin: Int)
 
-case class Subscribe(pin: Pin)
+case class Subscribe(pin: Int)
 
-case class Unsubscribe(pin: Pin)
+case class Unsubscribe(pin: Int)
 
 
-private [akka] case class AsDigitalIn(pin: Pin) extends ModeEvent
+private [akka] case class AsDigitalIn() extends ModeEvent
 
-private [akka] case class AsDigitalOut(pin: Pin) extends ModeEvent
+private [akka] case class AsDigitalOut() extends ModeEvent
 

@@ -41,7 +41,6 @@ object Conf {
         }
     }
 
-
     object Layouts {
         case object pi4j extends Layout
         case object bcom extends Layout

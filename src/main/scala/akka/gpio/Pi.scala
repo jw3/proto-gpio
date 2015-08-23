@@ -1,27 +1,32 @@
 package pi.akka
 
 import akka.actor._
+import akka.gpio.Conf.Directions._
 import akka.gpio.PiModel
 import com.pi4j.io.gpio._
-import com.pi4j.io.gpio.impl.GpioPinImpl
 import com.typesafe.config.Config
 
 import scala.collection.mutable
 
 object Pi {
-    def apply(m: PiModel)(implicit sys: ActorSystem): ActorRef = apply(m, GpioFactory.getInstance, new RaspiGpioProvider)
-    def apply(m: PiModel, c: GpioController, p: RaspiGpioProvider)(implicit sys: ActorSystem): ActorRef = sys.actorOf(props(m, c, p))
-    def props(m: PiModel, c: GpioController, p: RaspiGpioProvider): Props = Props(new Pi(m, c, p))
+    def apply(m: PiModel, f: PinProducer)(implicit sys: ActorSystem): ActorRef = sys.actorOf(Props(new Pi(m, f)))
 }
 
-class Pi(m: PiModel, c: GpioController, p: RaspiGpioProvider) extends Actor {
-    val subscribers = new mutable.HashMap[Pin, mutable.Set[ActorRef]] with mutable.MultiMap[Pin, ActorRef]
-
+class Pi(m: PiModel, f: PinProducer) extends Actor {
+    val subscribers = new mutable.HashMap[Int, mutable.Set[ActorRef]] with mutable.MultiMap[Int, ActorRef]
 
     // init
-    val gpio = m.pins.map { pin => pin -> context.actorOf(Gpio.props(new GpioPinImpl(c, p, pin))) }.toMap
+    val gpio = m.pins.map { num => num -> f.get(num) }.toMap
 
     def configure(conf: Config): Unit = {
+        // reset_pi_if_configured
+        import akka.gpio.Conf.RichPins
+        conf.eachPin { pin =>
+            gpio(pin.num) ! pin.mode match {
+                case digital if pin.dir == input => AsDigitalIn()
+                case digital if pin.dir == output => AsDigitalOut()
+            }
+        }
     }
 
     def receive: Receive = {
@@ -32,4 +37,8 @@ class Pi(m: PiModel, c: GpioController, p: RaspiGpioProvider) extends Actor {
         case Unsubscribe(p) => subscribers.removeBinding(p, sender())
         case _ =>
     }
+}
+
+trait PinProducer {
+    def get(num: Int)(implicit context: ActorContext): ActorRef
 }

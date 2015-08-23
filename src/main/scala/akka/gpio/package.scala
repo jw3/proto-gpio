@@ -1,7 +1,7 @@
 package akka
 
 import com.pi4j.io.gpio.event.{GpioPinDigitalStateChangeEvent, GpioPinListener, GpioPinListenerDigital}
-import com.pi4j.io.gpio.{GpioPinDigitalInput, GpioPinDigitalOutput, Pin}
+import com.pi4j.io.gpio.{GpioPinDigitalInput, GpioPinDigitalOutput}
 
 package object gpio {
 
@@ -10,7 +10,7 @@ package object gpio {
     trait ModeEvent
 
     trait PiModel {
-        val pins: List[Pin]
+        val pins: List[Int]
     }
 
     implicit def DigitalListenerFunction(f: GpioPinDigitalStateChangeEvent => Unit): GpioPinListener = {
