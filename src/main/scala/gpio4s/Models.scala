@@ -1,6 +1,10 @@
-package akka.gpio
+package gpio4s
 
 object Models {
+    trait PiModel {
+        val pins: List[Int]
+    }
+
     /**
      * Raspberry Pi Model B revision 2 P1 header only
      */

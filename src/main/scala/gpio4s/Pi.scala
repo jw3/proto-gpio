@@ -1,9 +1,9 @@
-package pi.akka
+package gpio4s
 
 import akka.actor._
-import akka.gpio.Conf.Directions._
-import akka.gpio.PiModel
-import com.pi4j.io.gpio._
+import gpio4s.Models.PiModel
+import picfg.PiCfg
+import PiCfg.Directions._
 import com.typesafe.config.Config
 
 import scala.collection.mutable
@@ -20,7 +20,7 @@ class Pi(m: PiModel, f: PinProducer) extends Actor {
 
     def configure(conf: Config): Unit = {
         // reset_pi_if_configured
-        import akka.gpio.Conf.RichPins
+        import PiCfg.RichPins
         conf.eachPin { pin =>
             gpio(pin.num) ! pin.mode match {
                 case digital if pin.dir == input => AsDigitalIn()

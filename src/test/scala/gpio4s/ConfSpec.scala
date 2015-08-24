@@ -1,12 +1,13 @@
-package akka.gpio
+package gpio4s
 
-import akka.gpio.Conf.DigitalState.{hi, low}
-import akka.gpio.Conf.Directions.{input, output}
-import akka.gpio.Conf.Modes.digital
-import akka.gpio.Conf.Pulls.{down, up}
-import akka.gpio.Conf._
 import com.typesafe.config.ConfigRenderOptions
 import org.scalatest.{Matchers, WordSpecLike}
+import picfg.PiCfg
+import picfg.PiCfg.DigitalState.{hi, low}
+import picfg.PiCfg.Directions.{input, output}
+import picfg.PiCfg.Modes.digital
+import picfg.PiCfg.Pulls.{down, up}
+import picfg.PiCfg._
 
 /**
  * @author wassj

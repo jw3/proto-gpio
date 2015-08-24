@@ -1,19 +1,19 @@
-package akka.gpio
+package picfg
 
-import akka.gpio.Conf.DigitalState.DigitalState
-import akka.gpio.Conf.Directions.Direction
-import akka.gpio.Conf.Layouts.Layout
-import akka.gpio.Conf.Modes.Mode
-import akka.gpio.Conf.Pulls.Pull
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
+import picfg.PiCfg.DigitalState.DigitalState
+import picfg.PiCfg.Directions.Direction
+import picfg.PiCfg.Layouts.Layout
+import picfg.PiCfg.Modes.Mode
+import picfg.PiCfg.Pulls.Pull
 
 import scala.collection.JavaConversions._
 
 /**
  * @author wassj
  */
-object Conf {
+object PiCfg {
     case class PinDef(num: Int,
                       mode: Mode,
                       dir: Direction,
