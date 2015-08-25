@@ -17,7 +17,7 @@ object app01 extends App {
     }
 
     pi ! Configure(config)
-    pi ! DigitalWrite(0, PinState.HIGH)
+    pi ! DigitalWrite(0, true)
 
     val listener = system.actorOf(Props[Listener])
     listener ! Subscribe(1)

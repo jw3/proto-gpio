@@ -1,29 +1,28 @@
-import com.pi4j.io.gpio.{GpioPinDigitalOutput, GpioPinDigitalInput, PinState}
-import com.pi4j.io.gpio.event.{GpioPinListenerDigital, GpioPinListener, GpioPinDigitalStateChangeEvent}
+import com.pi4j.io.gpio.event.{GpioPinDigitalStateChangeEvent, GpioPinListener, GpioPinListenerDigital}
 import com.typesafe.config.Config
+import picfg.PiCfg.PinDef
 
 
 package object gpio4s {
     trait ModeEvent
 
+    // pi events
     case class Configure(conf: Config)
-
-    case class DigitalEvent(pin: Int, value: PinState)
-
-    case class DigitalWrite(pin: Int, value: PinState)
-
-    case class DigitalRead(pin: Int)
-
     case class Subscribe(pin: Int)
-
     case class Unsubscribe(pin: Int)
 
+    // pin events
+    case class DigitalWrite(pin: Int, state: Boolean)
+    case class DigitalRead(pin: Int)
+    case class Status(pin: Int)
 
-    case class Reset(pin: Int) extends ModeEvent
+    private[gpio4s] case class Reset(pin: Int) extends ModeEvent
+    private[gpio4s] case class Setup(pin: PinDef) extends ModeEvent
+    //private[gpio4s] case class AsDigitalIn() extends ModeEvent
+    //private[gpio4s] case class AsDigitalOut() extends ModeEvent
 
-    private [gpio4s] case class AsDigitalIn() extends ModeEvent
-
-    private [gpio4s] case class AsDigitalOut() extends ModeEvent
+    // responses
+    case class DigitalEvent(pin: Int, state: Boolean)
 
     ////
 

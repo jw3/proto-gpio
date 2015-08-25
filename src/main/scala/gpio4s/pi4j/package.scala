@@ -1,9 +1,10 @@
 package gpio4s
 
-import akka.actor.{ActorRef, ActorContext, Actor, Props}
-import com.pi4j.io.gpio.{RaspiPin, RaspiGpioProvider, GpioController, PinMode}
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
+import com.pi4j.io.gpio._
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent
 import com.pi4j.io.gpio.impl.GpioPinImpl
+import picfg.PiCfg.PinDef
 
 package object pi4j {
     object RaspiGpio {
@@ -22,19 +23,25 @@ package object pi4j {
         }
 
         def receive: Receive = {
-            case AsDigitalIn() => {
-                gpio.export(PinMode.DIGITAL_INPUT)
-                gpio.addListener(stateChangeListener)
-                context.become(digitalIn)
-            }
-            case AsDigitalOut() => {
-                gpio.export(PinMode.DIGITAL_OUTPUT)
-                context.become(digitalOut)
+            case Setup(p) => setup(p)
+        }
+
+        def setup(pin: PinDef ) = {
+            pin.mode match {
+                case digital if pin.dir.isInput => {
+                    gpio.export(PinMode.DIGITAL_INPUT)
+                    gpio.addListener(stateChangeListener)
+                    context.become(digitalIn)
+                }
+                case digital if pin.dir.isOutput => {
+                    gpio.export(PinMode.DIGITAL_OUTPUT)
+                    context.become(digitalOut)
+                }
             }
         }
 
         lazy val stateChangeListener = { e: GpioPinDigitalStateChangeEvent =>
-            context.parent ! DigitalEvent(gpio.getPin.getAddress, e.getState)
+            context.parent ! DigitalEvent(gpio.getPin.getAddress, e.getState.isHigh)
         }
 
         def reset(): Unit = {

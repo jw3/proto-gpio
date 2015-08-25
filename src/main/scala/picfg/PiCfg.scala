@@ -81,6 +81,8 @@ object PiCfg {
         sealed trait Direction {
             this: Product =>
             val uid = productPrefix
+            def isInput = this == input
+            def isOutput = this == output
         }
 
         def from(cfg: Config): Direction = cfg.getString("direction") match {
