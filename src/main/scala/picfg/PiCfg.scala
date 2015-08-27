@@ -11,6 +11,7 @@ import picfg.PiCfg.Pulls.Pull
 import scala.collection.JavaConversions._
 
 /**
+ * DSL modeling the configuration of Pi pins
  * @author wassj
  */
 object PiCfg {
@@ -20,6 +21,11 @@ object PiCfg {
                       state: Option[AnyRef],
                       pull: Option[Pull])
 
+    /**
+     * entry point to dsl
+     * @param fn
+     * @return
+     */
     def gpio(fn: PinBuilder => Unit): Config = {
         val b = new PinBuilder
         fn(b)
@@ -155,6 +161,9 @@ object PiCfg {
     }
 
 
+    /**
+     * @author wassj
+     */
     private class PinBuilder extends PinNumberBuilder with PinModeBuilder with DigitalInitializer with AnalogInitializer {
         import com.typesafe.config.{ConfigFactory => cf, ConfigValueFactory => cvf}
 

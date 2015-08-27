@@ -7,6 +7,11 @@ import picfg.PiCfg
 
 import scala.collection.mutable
 
+
+/**
+ * Interface to a Pi
+ * @author  wassj
+ */
 object Pi {
     def apply(m: PiModel, f: PinProducer)(implicit sys: ActorSystem): ActorRef = sys.actorOf(Props(new Pi(m, f)))
 }
@@ -33,8 +38,4 @@ class Pi(m: PiModel, f: PinProducer) extends Actor {
 
         case _ =>
     }
-}
-
-trait PinProducer {
-    def get(num: Int)(implicit context: ActorContext): ActorRef
 }

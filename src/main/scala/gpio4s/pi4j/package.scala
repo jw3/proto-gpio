@@ -7,11 +7,11 @@ import com.pi4j.io.gpio.impl.GpioPinImpl
 import picfg.PiCfg.PinDef
 
 package object pi4j {
-    object RaspiGpio {
-        def props(gpio: GpioPinImpl): Props = Props(new RaspiGpio(gpio))
-    }
-
-    class RaspiGpio(val gpio: GpioPinImpl) extends Actor {
+    /**
+     * Actor interface to Pi4j GPIO
+     * @author  wassj
+     */
+    class RaspiGpio(gpio: GpioPinImpl) extends Actor {
         def digitalIn: Receive = {
             case DigitalRead(_) => sender() ! gpio.isHigh
             case Reset(_) => reset()
@@ -26,7 +26,7 @@ package object pi4j {
             case Setup(p) => setup(p)
         }
 
-        def setup(pin: PinDef ) = {
+        def setup(pin: PinDef) = {
             pin.mode match {
                 case digital if pin.dir.isInput => {
                     gpio.export(PinMode.DIGITAL_INPUT)
@@ -50,6 +50,14 @@ package object pi4j {
         }
     }
 
+    object RaspiGpio {
+        def props(gpio: GpioPinImpl): Props = Props(new RaspiGpio(gpio))
+    }
+
+    /**
+     * Pi4j [[PinProducer]] implementation
+     * @author  wassj
+     */
     class Pi4jPinProducer(c: GpioController, p: RaspiGpioProvider) extends PinProducer {
         def get(num: Int)(implicit context: ActorContext): ActorRef = {
             context.actorOf(RaspiGpio.props(new GpioPinImpl(c, p, RaspiPin.getPinByName("GPIO " + num))))

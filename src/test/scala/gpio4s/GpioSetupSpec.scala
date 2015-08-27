@@ -15,7 +15,6 @@ import picfg.PiCfg._
 class GpioSetupSpec extends TestKit(ActorSystem(getClass.getSimpleName.dropRight(1)))
                             with ImplicitSender with WordSpecLike with Matchers with MockFactory {
 
-
     "pi" must {
         "create all pins for model" in {
             val producer = stub[PinProducer]
