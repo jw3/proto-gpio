@@ -26,7 +26,7 @@ object PiCfg {
      * @param fn
      * @return
      */
-    def gpio(fn: PinBuilder => Unit): Config = {
+    def gpio(fn: PinNumberBuilder => Unit): Config = {
         val b = new PinBuilder
         fn(b)
         b.build

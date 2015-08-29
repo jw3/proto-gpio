@@ -1,6 +1,7 @@
 import akka.actor.{ActorContext, ActorRef}
 import com.pi4j.io.gpio.event.{GpioPinDigitalStateChangeEvent, GpioPinListener, GpioPinListenerDigital}
 import com.typesafe.config.Config
+import picfg.PiCfg
 import picfg.PiCfg.PinDef
 
 
@@ -13,6 +14,10 @@ package object gpio4s {
 
     // pi events
     case class Configure(conf: Config)
+    object Configure {
+        import PiCfg._
+        def apply(fn: PinNumberBuilder => Unit): Configure = Configure(gpio(fn))
+    }
     case class Subscribe(pin: Int)
     case class Unsubscribe(pin: Int)
 
