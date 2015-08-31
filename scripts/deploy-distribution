@@ -1,0 +1,10 @@
+#!/bin/bash
+
+export app_name="${distributions.main.baseName}"
+export archive_dir="$copyArchivesTo"
+export archive_file="\${app_name}.tar"
+export install_dir="$baseInstallDir/\$app_name"
+
+rm -rf \$install_dir
+mkdir \$install_dir
+tar xvf \$archive_dir/\$archive_file -C \$install_dir --strip-components 1
