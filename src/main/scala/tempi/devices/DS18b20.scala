@@ -6,7 +6,7 @@ import tempi._
 
 import scala.io.Source
 
-class DS18b20(id: String, source: Source) extends Actor with Device with LazyLogging {
+class DS18b20(id: String, source: Source) extends Actor with LazyLogging {
     import DS18b20._
 
     def receive: Receive = {

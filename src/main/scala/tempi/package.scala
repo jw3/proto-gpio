@@ -1,8 +1,6 @@
-import akka.actor.Actor
+
 
 package object tempi {
-
-    trait Device extends Actor
 
     case class RequestReading()
     case class ReadingFailure(dev: String, t: Long, meta: Option[String] = None)

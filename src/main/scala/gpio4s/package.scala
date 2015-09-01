@@ -1,4 +1,4 @@
-import akka.actor.{ActorContext, ActorRef}
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.pi4j.io.gpio.event.{GpioPinDigitalStateChangeEvent, GpioPinListener, GpioPinListenerDigital}
 import com.typesafe.config.Config
 import picfg.PiCfg
@@ -6,8 +6,29 @@ import picfg.PiCfg.PinDef
 
 
 package object gpio4s {
+    type PinAllocation = Map[Int, ActorRef]
+
     trait PinProducer {
         def get(num: Int)(implicit context: ActorContext): ActorRef
+    }
+
+    trait DeviceInfo {
+        def id: String
+        def conf: Config
+        def impl: Class[_ <: Device]
+
+        final def props(pins: PinAllocation): Props = Props(impl, id, conf, pins)
+    }
+    /**
+     * Tagging interface that identifies a Device Actor
+     * A Device requires a ctor that takes
+     */
+    trait Device extends Actor
+    object Device {
+        sealed trait DeviceMessage
+        case class InstallDevice(info: DeviceInfo) extends DeviceMessage
+        case class DeviceInstalled(id: String, actorRef: ActorRef) extends DeviceMessage
+        case class DeviceInstallFailed(id: String, e: Throwable) extends DeviceMessage
     }
 
     trait ModeEvent
