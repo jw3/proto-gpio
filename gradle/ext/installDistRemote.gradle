@@ -1,0 +1,67 @@
+/**
+ * Install a deployment on a remote machine using scp and ssh
+ *
+ * Required Properties
+ *      driverClass=
+ *      deployUser=
+ *      deployPass=
+ *      deployPKey=
+ *      deployHost=
+ *      copyArchivesTo=
+ *      baseInstallDir=
+ *
+ */
+
+configurations {
+    sshAnt
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
+dependencies {
+    sshAnt 'org.apache.ant:ant-jsch:1.9.6'
+}
+
+ant.taskdef(name: 'scp',
+        classname: 'org.apache.tools.ant.taskdefs.optional.ssh.Scp',
+        classpath: configurations.sshAnt.asPath)
+
+ant.taskdef(name: 'ssh',
+        classname: 'org.apache.tools.ant.taskdefs.optional.ssh.SSHExec',
+        classpath: configurations.sshAnt.asPath)
+
+task prepareScripts(type: Copy) {
+    from 'gradle/scripts'
+    into buildDir
+    expand project.properties
+    eachFile { println("\t- ${it.name}") }
+}
+
+task installDistRemote(group: 'distribution', dependsOn: [clean, distTar, prepareScripts]) {
+    doLast {
+        def dist = "$buildDir/distributions/${distributions.main.baseName}.tar"
+
+        println("Copy $dist to $deployHost $copyArchivesTo as $deployUser : ${distributions.main.baseName}")
+        ant.scp(file: dist,
+                todir: "$deployUser@$deployHost:$copyArchivesTo",
+                password: deployPass,
+                trust: true)
+
+        println("Copy deployer scripts to $deployHost")
+        ant.scp(file: "$buildDir/deploy-distribution",
+                todir: "$deployUser@$deployHost:/usr/local/bin",
+                password: deployPass,
+                filemode: 755,
+                trust: true)
+
+        println("Execute deployment script as $deployUser on $deployHost")
+        ant.ssh(host: deployHost,
+                username: deployUser,
+                password: deployPass,
+                trust: true,
+                command: "deploy-distribution")
+    }
+}

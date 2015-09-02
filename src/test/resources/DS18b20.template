@@ -1,0 +1,5 @@
+# template for mock input from a DS18b20
+# interpolate the $status and $value vars
+
+ab cd ef gh : crc=ij ${status}
+ab cd ef gh t=${value}

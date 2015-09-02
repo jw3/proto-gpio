@@ -16,21 +16,30 @@ object Models {
     }
 
     /**
-     * Raspberry Pi Model B revision 2, both P1 and P5 headers
+     * Raspberry Pi Model B revision 2, including P5 header
      */
     object bRev2wP5 extends PiModel {
         val pins = bRev2.pins ::: (17 to 20).toList
     }
 
+    /**
+     * Raspberry Pi A+
+     */
     object aPlus extends PiModel {
         val pins: List[Int] = bRev2.pins ::: (21 to 29).toList
     }
 
+    /**
+     * Raspberry Pi B+
+     */
     object bPlus extends PiModel {
         val pins = aPlus.pins
     }
 
-    object pi2 extends PiModel {
+    /**
+     * Raspberry Pi 2 Model B
+     */
+    object pi2b extends PiModel {
         val pins = aPlus.pins
     }
 }

@@ -63,4 +63,6 @@ package object pi4j {
             context.actorOf(RaspiGpio.props(new GpioPinImpl(c, p, RaspiPin.getPinByName("GPIO " + num))))
         }
     }
+
+    def pi4jPins() = new Pi4jPinProducer(GpioFactory.getInstance, new RaspiGpioProvider)
 }

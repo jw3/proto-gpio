@@ -1,17 +1,12 @@
 apply plugin: 'scala'
-
-// https://docs.gradle.org/current/userguide/application_plugin.html
 apply plugin: 'application'
+apply from: 'gradle/ext/installDistRemote.gradle'
 
-mainClassName = "app.TempMonitorApp"
+mainClassName = driverClass
 
 repositories {
     mavenLocal()
     mavenCentral()
-}
-
-configurations {
-    sshAnt
 }
 
 dependencies {
@@ -27,52 +22,4 @@ dependencies {
 
     compile 'com.typesafe:config:1.3.0'
     compile 'net.ceedubs:ficus_2.11:1.1.2'
-
-    sshAnt 'org.apache.ant:ant-jsch:1.9.6'
-}
-////////////////////////////////////////
-
-ant.taskdef(name: 'scp',
-        classname: 'org.apache.tools.ant.taskdefs.optional.ssh.Scp',
-        classpath: configurations.sshAnt.asPath)
-
-ant.taskdef(name: 'ssh',
-        classname: 'org.apache.tools.ant.taskdefs.optional.ssh.SSHExec',
-        classpath: configurations.sshAnt.asPath)
-
-
-task prepareScripts(name: 'scripts', group: 'deployment', type: Copy) {
-    from 'scripts'
-    into buildDir
-    expand project.properties
-    eachFile { println("\t- ${it.name}") }
-}
-
-task deploy(name: 'deploy', group: 'deployment', dependsOn: [clean, distTar, prepareScripts]) {
-    doLast {
-        def dist = "$buildDir/distributions/${distributions.main.baseName}.tar"
-
-        println("Copy $dist to $deployHost $copyArchivesTo as $deployUser : ${distributions.main.baseName}")
-        ant.scp(
-                file: dist,
-                todir: "$deployUser@$deployHost:$copyArchivesTo",
-                password: deployPass,
-                trust: true)
-
-        println("Copy deployer scripts to $deployHost")
-        ant.scp(
-                file: "$buildDir/deploy-distribution",
-                todir: "$deployUser@$deployHost:/usr/local/bin",
-                password: deployPass,
-                filemode: 755,
-                trust: true)
-
-        println("Execute deployment script as $deployUser on $deployHost")
-        ant.ssh(
-                host: deployHost,
-                username: deployUser,
-                password: deployPass,
-                trust: true,
-                command: "deploy-distribution")
-    }
 }
