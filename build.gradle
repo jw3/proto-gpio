@@ -1,4 +1,5 @@
 apply plugin: 'scala'
+apply plugin: 'java'
 apply plugin: 'application'
 apply from: 'gradle/ext/installDistRemote.gradle'
 

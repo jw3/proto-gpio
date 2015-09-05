@@ -56,8 +56,10 @@ package object rdf4s {
         def >(): Unit
     }
 
-    def model(fn: ModelBuilder => Unit)(implicit f: ValueFactory): Model = {
-        val model = implicits.modelFactory.createEmptyModel()
+    def model()(implicit m: ModelFactory): Model = m.createEmptyModel()
+
+    def model(fn: ModelBuilder => Unit)(implicit f: ValueFactory, m: ModelFactory): Model = {
+        val model = m.createEmptyModel()
         fn(new ModelBuilder(model))
         model
     }
@@ -76,7 +78,7 @@ package object rdf4s {
         var s: Resource = _
         var p: IRI = _
         var o: Value = _
-        var g: Option[Resource] = _
+        var g: Option[Resource] = None
 
         def <(s: String): pb = {
             this.s = iri(s)
@@ -111,7 +113,7 @@ package object rdf4s {
     }
 
 
-    def random: String = random(8)
+    def random: String = random(4)
     def random(len: Int): String = Random.alphanumeric.take(len).mkString
 
 
