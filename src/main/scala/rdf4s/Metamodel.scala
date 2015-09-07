@@ -1,29 +1,33 @@
 package rdf4s
 
 import com.typesafe.scalalogging.LazyLogging
-import org.openrdf.model.{IRI, Resource, Value}
+import org.openrdf.model.{IRI, Model, Resource, Value}
 
 import scala.collection.JavaConversions._
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{universe => ru}
 
 
-object MetamodelOntology {
-    val mmNamespace = "mm:"
-    val mmMapped = mmNamespace + "mapped"
-    val mmCtor = mmNamespace + "ctor"
-    val mmCtorParam = mmNamespace + "ctorParam"
+object Metamodel {
+    import implicits._
 
-    val mmProperty = mmNamespace + "property"
-    val mmPropertyGet = mmProperty + "Get"
-    val mmPropertySet = mmProperty + "Set"
+    type LookupFn = Resource => Option[AnyRef]
+
+    val mmNamespace = "mm:"
+    val mmMapped = iri(mmNamespace, "mapped")
+    val mmCtor = iri(mmNamespace, "ctor")
+    val mmCtorParam = iri(mmNamespace, "ctorParam")
+
+    val mmProperty = iri(mmNamespace, "property")
+    val mmPropertyGet = iri(mmNamespace, s"${mmProperty.getLocalName}Get")
+    val mmPropertySet = iri(mmNamespace, s"${mmProperty.getLocalName}Set")
 }
 
 
 // prototyping a metamodel for use by rdf4s
 // this will likely be a separate project from the actual rdf library
 class Metamodel extends LazyLogging {
-    import MetamodelOntology._
+    import Metamodel._
     import implicits._
     import org.openrdf.model.vocabulary.RDF.TYPE
     import org.openrdf.model.vocabulary.RDFS.SUBCLASSOF
@@ -33,6 +37,8 @@ class Metamodel extends LazyLogging {
     val rtmap = collection.mutable.Map[Class[_], Resource]()
 
     initBuiltins()
+
+    def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = rtmap.get(t).map(r => q(r, mmodel, mmap.get(_)))
 
     def install[T: TypeTag] = {
         val (tid, tpe) = relateType[T]
@@ -58,7 +64,7 @@ class Metamodel extends LazyLogging {
     }
 
     // pattern is {thing} {relation} {owner}
-    def relate(sym: Symbol, p: IRI, o: IRI, lnf: => String = random): IRI = {
+    private def relate(sym: Symbol, p: IRI, o: IRI, lnf: => String = random): IRI = {
         val s = iri(mmNamespace, lnf)
         mmap(s) = sym
         add(s, p, o)
@@ -67,59 +73,51 @@ class Metamodel extends LazyLogging {
         s
     }
 
-    def relateType[T: TypeTag](): (IRI, Type) = relateType[T](random)
-    def relateType[T: TypeTag](lnf: => String): (IRI, Type) = {
+    private def relateType[T: TypeTag](): (IRI, Type) = relateType[T](random)
+    private def relateType[T: TypeTag](lnf: => String): (IRI, Type) = {
         val tpe = typeTag[T].tpe
         val tid = relate(tpe.typeSymbol, TYPE, mmMapped, lnf)
         rtmap(ru.rootMirror.runtimeClass(tpe)) = tid
         (tid -> tpe)
     }
 
-    def symOrNone(s: Symbol): Option[Symbol] = if (s != NoSymbol) Option(s) else None
-    def add(s: Resource, p: IRI, o: Value, g: Option[Resource] = None) = mmodel.add(statement(s, p, o, g))
+    private def symOrNone(s: Symbol): Option[Symbol] = if (s != NoSymbol) Option(s) else None
+    private def add(s: Resource, p: IRI, o: Value, g: Option[Resource] = None) = mmodel.add(statement(s, p, o, g))
 
-    def initBuiltins() = {
+    private def initBuiltins() = {
+        relateType[Char]("Char")
+        relateType[Byte]("Byte")
+        relateType[Short]("Short")
         relateType[Int]("Int")
+        relateType[Long]("Long")
+        relateType[Float]("Float")
+        relateType[Double]("Doublt")
         relateType[String]("String")
     }
+}
 
+object Queries {
+    import Metamodel._
 
-    //// moving out
-
-    def sit1[T: TypeTag]: Option[Seq[MethodSymbol]] = {
-        val t = ru.rootMirror.runtimeClass(typeOf[T])
-        rtmap.get(t).map { tid =>
-            mmodel.filter(null, mmCtor, tid).subjects
-            .flatMap(r => mmap.get(r))
-            .map(m => m.asInstanceOf[MethodSymbol])
-            .toSeq
-        }
+    def ctors(tid: Resource, mmodel: Model, lookup: Metamodel.LookupFn): Map[Resource, Seq[Symbol]] = {
+        mmodel.filter(null, mmCtor, tid).subjects
+        .map(cid => cid -> mmodel.filter(null, mmCtorParam, cid).subjects)
+        .map(m => m._1 -> m._2.map(lookup(_)))
+        .filterNot(m => m._2.contains(None)) /* filter out entries that have params that are not mapped */
+        .map(m => m._1 -> m._2.flatten)
+        .map(m => m._1 -> m._2.map(_.asInstanceOf[Symbol]).toSeq)
+        .toMap
     }
 
     // get all gets
-    def sit2[T](t: Class[T]): Option[Seq[Symbol]] = {
-        rtmap.get(t).map { tid =>
-            mmodel.filter(null, mmProperty, tid).subjects
-            .flatMap(aid => mmodel.filter(null, mmPropertyGet, aid).subjects)
-            .flatMap(r => mmap.get(r))
-            .map { m => m.asInstanceOf[Symbol]
-            }.toSeq
-        }
+    def getters(tid: Resource, mmodel: Model, lookup: LookupFn): Seq[Symbol] = {
+        mmodel.filter(null, mmProperty, tid).subjects
+        .flatMap(aid => mmodel.filter(null, mmPropertyGet, aid).subjects)
+        .flatMap(r => lookup(r))
+        .map { m => m.asInstanceOf[Symbol]
+        }.toSeq
     }
 
-    // map of ctor ids to the types; not worrying about param ordering now
-    // we return the ctorid, so if the param list is interesting the ctor can be obtained
-    def ctors[T](t: Class[T]): Map[Resource, Seq[Symbol]] = {
-        rtmap.get(t).map { tid =>
-            mmodel.filter(null, mmCtor, tid).subjects
-            .map(cid => cid -> mmodel.filter(null, mmCtorParam, cid).subjects)
-            .map(m => m._1 -> m._2.map(mmap.get(_)))
-            .filterNot(m => m._2.contains(None)) /* filter out entries that have params that are not mapped */
-            .map(m => m._1 -> m._2.flatten)
-            .map(m => m._1 -> m._2.map(_.asInstanceOf[Symbol]).toSeq)
-            .toMap
-        }.getOrElse(Map[Resource, Seq[Symbol]]())
-    }
 }
 
 class Test1(name: String, age: Int) {
@@ -138,27 +136,26 @@ object testx {
         mm.install[Test1]
         mm.install[Test2]
 
+
+
+        ////////////////////////////////////
+        //
+        // time for some tests!
+        //
+        ////////////////////////////////////
+
+
         //mm.mmap.foreach(println)
 
-        // 1 start with a TypeTag
-        // situation 1: query: get all instances of Foo
-        println(mm.sit1[Test1])
-        println(mm.sit1[String])
-
-
         // 2 start with an object
-        // situation 2: write: given a Foo, serialize it
-        println(mm.sit2(b.getClass))
+        // situation 2: get all getters; use case  - given a Foo, serialize it
+        println(mm.query(b.getClass, Queries.getters))
 
         //3 start with type
         // figure out what ctors are available
-        println("1 " + mm.ctors(classOf[Test1]))
-        println("2 " + mm.ctors(classOf[Test2]))
+        println("1b " + mm.query(classOf[Test1], Queries.ctors))
+        println("2b " + mm.query(classOf[Test2], Queries.ctors))
 
-
-
-        //        mm.mmodel.foreach(println)
-        //        mm.mmap.foreach(println)
     }
 }
 
