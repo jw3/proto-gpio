@@ -8,101 +8,58 @@ import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{universe => ru}
 
 
+object MetamodelOntology {
+    val mmNamespace = "mm:"
+    val mmMapped = mmNamespace + "mapped"
+    val mmCtor = mmNamespace + "ctor"
+    val mmCtorParam = mmNamespace + "ctorParam"
+
+    val mmProperty = mmNamespace + "property"
+    val mmPropertyGet = mmProperty + "Get"
+    val mmPropertySet = mmProperty + "Set"
+}
+
+
 // prototyping a metamodel for use by rdf4s
 // this will likely be a separate project from the actual rdf library
 class Metamodel extends LazyLogging {
+    import MetamodelOntology._
     import implicits._
     import org.openrdf.model.vocabulary.RDF.TYPE
     import org.openrdf.model.vocabulary.RDFS.SUBCLASSOF
 
-    val ns = "mm:"
-    val mmMapped = ns + "mmMapped"
-    val beanType = ns + "bean"
-    val beanClass = ns + "rtclass"
-    val beanCtor = ns + "tctor"
-    val ctorParm = ns + "cprop"
-
-    val beanProp = ns + "bprop"
-    val beanPropGet = beanProp + "Get"
-    val beanPropSet = beanProp + "Set"
-
-    // needs to be threadsafe
-    val rtmap = collection.mutable.Map[Class[_], Resource]()
-    val mmap = collection.mutable.Map[Resource, AnyRef]()
     val mmodel = model()
+    val mmap = collection.mutable.Map[Resource, AnyRef]()
+    val rtmap = collection.mutable.Map[Class[_], Resource]()
 
-    relateType[Int]("Int")
-    relateType[String]("String")
+    initBuiltins()
 
-
-    def sit1[T: TypeTag]: Option[Seq[MethodSymbol]] = {
-        val t = ru.rootMirror.runtimeClass(typeOf[T])
-        rtmap.get(t).map { tid =>
-            mmodel.filter(null, beanCtor, tid).subjects
-                .flatMap(r => mmap.get(r))
-                .map(m => m.asInstanceOf[MethodSymbol])
-                .toSeq
-        }
-    }
-
-    // get all gets
-    def sit2[T](t: Class[T]): Option[Seq[Symbol]] = {
-        rtmap.get(t).map { tid =>
-            mmodel.filter(null, beanProp, tid).subjects
-                .flatMap(aid => mmodel.filter(null, beanPropGet, aid).subjects)
-                .flatMap(r => mmap.get(r))
-                .map { m => m.asInstanceOf[Symbol]
-            }.toSeq
-        }
-    }
-
-    // map of ctor ids to the types; not worrying about param ordering now
-    // we return the ctorid, so if the param list is interesting the ctor can be obtained
-    def ctors[T](t: Class[T]): Map[Resource, Seq[Symbol]] = {
-        rtmap.get(t).map { tid =>
-            mmodel.filter(null, beanCtor, tid).subjects
-                .map(cid => cid -> mmodel.filter(null, ctorParm, cid).subjects)
-                .map(m => m._1 -> m._2.map(mmap.get(_)))
-                .filterNot(m => m._2.contains(None)) /* filter out entries that have params that are not mapped */
-                .map(m => m._1 -> m._2.flatten)
-                .map(m => m._1 -> m._2.map(_.asInstanceOf[Symbol]).toSeq)
-                .toMap
-        }.getOrElse(Map[Resource, Seq[Symbol]]())
-    }
-
-    def cascade[T: TypeTag] = {
-        val rmmap = collection.mutable.Map[AnyRef, IRI]()
-
+    def install[T: TypeTag] = {
         val (tid, tpe) = relateType[T]
-        add(tid, SUBCLASSOF, beanType)
 
-        val accessors = tpe.members
-            .map(_.asTerm)
-            .filter(x => x.isVal || x.isVar)
-            .map { x => x -> (symOrNone(x.getter) -> symOrNone(x.setter)) }
-
-        accessors.foreach { a =>
-            val aid = relate(a._1, beanProp, tid)
-            a._2._1.foreach(relate(_, beanPropGet, aid))
-            a._2._2.foreach(relate(_, beanPropSet, aid))
+        tpe.members
+        .filter(_.isTerm)
+        .map(_.asTerm)
+        .filter(x => x.isVal || x.isVar)
+        .map { x => x -> (symOrNone(x.getter) -> symOrNone(x.setter)) }
+        .foreach { a =>
+            val aid = relate(a._1, mmProperty, tid)
+            a._2._1.foreach(relate(_, mmPropertyGet, aid))
+            a._2._2.foreach(relate(_, mmPropertySet, aid))
         }
 
-        val ctors = tpe.members.filter(_.isConstructor).map(_.asMethod)
-        ctors.foreach { c => rmmap(c) = relate(c, beanCtor, tid) }
-
-        val ctorParams = ctors.map(_.asMethod).map { c =>
-            (c -> c.paramLists.head)
-        }
-
-        ctorParams.foreach { pv =>
-            val ctorId = rmmap(pv._1)
-            pv._2.foreach(relate(_, ctorParm, ctorId))
+        tpe.members
+        .filter(_.isConstructor)
+        .map(_.asMethod)
+        .map(c => c -> relate(c, mmCtor, tid))
+        .foreach { t =>
+            t._1.paramLists.head.foreach(relate(_, mmCtorParam, t._2))
         }
     }
 
     // pattern is {thing} {relation} {owner}
     def relate(sym: Symbol, p: IRI, o: IRI, lnf: => String = random): IRI = {
-        val s = iri(ns, lnf)
+        val s = iri(mmNamespace, lnf)
         mmap(s) = sym
         add(s, p, o)
         add(s, SUBCLASSOF, p)
@@ -120,6 +77,49 @@ class Metamodel extends LazyLogging {
 
     def symOrNone(s: Symbol): Option[Symbol] = if (s != NoSymbol) Option(s) else None
     def add(s: Resource, p: IRI, o: Value, g: Option[Resource] = None) = mmodel.add(statement(s, p, o, g))
+
+    def initBuiltins() = {
+        relateType[Int]("Int")
+        relateType[String]("String")
+    }
+
+
+    //// moving out
+
+    def sit1[T: TypeTag]: Option[Seq[MethodSymbol]] = {
+        val t = ru.rootMirror.runtimeClass(typeOf[T])
+        rtmap.get(t).map { tid =>
+            mmodel.filter(null, mmCtor, tid).subjects
+            .flatMap(r => mmap.get(r))
+            .map(m => m.asInstanceOf[MethodSymbol])
+            .toSeq
+        }
+    }
+
+    // get all gets
+    def sit2[T](t: Class[T]): Option[Seq[Symbol]] = {
+        rtmap.get(t).map { tid =>
+            mmodel.filter(null, mmProperty, tid).subjects
+            .flatMap(aid => mmodel.filter(null, mmPropertyGet, aid).subjects)
+            .flatMap(r => mmap.get(r))
+            .map { m => m.asInstanceOf[Symbol]
+            }.toSeq
+        }
+    }
+
+    // map of ctor ids to the types; not worrying about param ordering now
+    // we return the ctorid, so if the param list is interesting the ctor can be obtained
+    def ctors[T](t: Class[T]): Map[Resource, Seq[Symbol]] = {
+        rtmap.get(t).map { tid =>
+            mmodel.filter(null, mmCtor, tid).subjects
+            .map(cid => cid -> mmodel.filter(null, mmCtorParam, cid).subjects)
+            .map(m => m._1 -> m._2.map(mmap.get(_)))
+            .filterNot(m => m._2.contains(None)) /* filter out entries that have params that are not mapped */
+            .map(m => m._1 -> m._2.flatten)
+            .map(m => m._1 -> m._2.map(_.asInstanceOf[Symbol]).toSeq)
+            .toMap
+        }.getOrElse(Map[Resource, Seq[Symbol]]())
+    }
 }
 
 class Test1(name: String, age: Int) {
@@ -135,8 +135,8 @@ object testx {
         val b = new Test1("bob", 99)
 
         val mm = new Metamodel()
-        mm.cascade[Test1]
-        mm.cascade[Test2]
+        mm.install[Test1]
+        mm.install[Test2]
 
         //mm.mmap.foreach(println)
 
