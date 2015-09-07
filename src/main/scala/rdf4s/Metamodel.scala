@@ -7,11 +7,16 @@ import scala.collection.JavaConversions._
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{universe => ru}
 
+
+// prototyping a metamodel for use by rdf4s
+// this will likely be a separate project from the actual rdf library
 class Metamodel extends LazyLogging {
     import implicits._
-    import org.openrdf.model.vocabulary.RDFS._
+    import org.openrdf.model.vocabulary.RDF.TYPE
+    import org.openrdf.model.vocabulary.RDFS.SUBCLASSOF
 
     val ns = "mm:"
+    val mmMapped = ns + "mmMapped"
     val beanType = ns + "bean"
     val beanClass = ns + "rtclass"
     val beanCtor = ns + "tctor"
@@ -24,24 +29,11 @@ class Metamodel extends LazyLogging {
     // needs to be threadsafe
     val rtmap = collection.mutable.Map[Class[_], Resource]()
     val mmap = collection.mutable.Map[Resource, AnyRef]()
-
     val mmodel = model()
 
+    relateType[Int]("Int")
+    relateType[String]("String")
 
-    // init built in types
-    {
-        val intTpe = typeTag[Int].tpe
-        val intTid = iri(ns, "Int")
-        mmap(intTid) = intTpe
-        rtmap(ru.rootMirror.runtimeClass(intTpe)) = intTid
-    }
-
-    {
-        val intTpe = typeTag[String].tpe
-        val intTid = iri(ns, "String")
-        mmap(intTid) = intTpe
-        rtmap(ru.rootMirror.runtimeClass(intTpe)) = intTid
-    }
 
     def sit1[T: TypeTag]: Option[Seq[MethodSymbol]] = {
         val t = ru.rootMirror.runtimeClass(typeOf[T])
@@ -60,8 +52,7 @@ class Metamodel extends LazyLogging {
                 .flatMap(aid => mmodel.filter(null, beanPropGet, aid).subjects)
                 .flatMap(r => mmap.get(r))
                 .map { m => m.asInstanceOf[Symbol]
-            }
-                .toSeq
+            }.toSeq
         }
     }
 
@@ -79,56 +70,25 @@ class Metamodel extends LazyLogging {
         }.getOrElse(Map[Resource, Seq[Symbol]]())
     }
 
-    def single[T: TypeTag](t: T) = {
-    }
-
-    def cascade[T: TypeTag](t: T) = {
+    def cascade[T: TypeTag] = {
         val rmmap = collection.mutable.Map[AnyRef, IRI]()
 
-        val tpe = typeTag[T].tpe
-
-        val tid = iri(ns, random)
-        mmap(tid) = tpe
-        rtmap(ru.rootMirror.runtimeClass(tpe)) = tid
+        val (tid, tpe) = relateType[T]
         add(tid, SUBCLASSOF, beanType)
 
         val accessors = tpe.members
             .map(_.asTerm)
             .filter(x => x.isVal || x.isVar)
-            .map(x => (x -> (
-            (if (x.getter != NoSymbol) Option(x.getter) else None) ->
-                (if (x.setter != NoSymbol) Option(x.setter) else None))))
+            .map { x => x -> (symOrNone(x.getter) -> symOrNone(x.setter)) }
 
         accessors.foreach { a =>
-            val aid = iri(ns, random)
-            mmap(aid) = a._1
-            logger.trace(s"accessor [$aid] -> [${a._1}}]")
-
-            add(aid, beanProp, tid)
-            add(aid, SUBCLASSOF, beanProp)
-
-            a._2._1.foreach { g =>
-                val gid = iri(ns, random)
-                mmap(gid) = g
-                add(gid, beanPropGet, aid)
-            }
-            a._2._2.foreach { s =>
-                val sid = iri(ns, random)
-                mmap(sid) = s
-                add(sid, beanPropSet, aid)
-            }
+            val aid = relate(a._1, beanProp, tid)
+            a._2._1.foreach(relate(_, beanPropGet, aid))
+            a._2._2.foreach(relate(_, beanPropSet, aid))
         }
 
         val ctors = tpe.members.filter(_.isConstructor).map(_.asMethod)
-        ctors.foreach { c =>
-            val ctorId = iri(ns, random)
-            mmap(ctorId) = c
-            rmmap(c) = ctorId
-
-            // map the accessor to the bean
-            add(ctorId, beanCtor, tid)
-            add(ctorId, SUBCLASSOF, beanCtor)
-        }
+        ctors.foreach { c => rmmap(c) = relate(c, beanCtor, tid) }
 
         val ctorParams = ctors.map(_.asMethod).map { c =>
             (c -> c.paramLists.head)
@@ -136,30 +96,38 @@ class Metamodel extends LazyLogging {
 
         ctorParams.foreach { pv =>
             val ctorId = rmmap(pv._1)
-
-            pv._2.foreach { p =>
-                val pId = iri(ns, random)
-                mmap(pId) = p
-
-                // pid is a ctorparam and belongs to ctorid
-                add(pId, ctorParm, ctorId)
-                add(pId, SUBCLASSOF, ctorParm)
-            }
+            pv._2.foreach(relate(_, ctorParm, ctorId))
         }
     }
 
-
-    // pattern is {thing} {relation} {ownedby}
-
-
-    def add(s: Resource, p: IRI, o: Value, g: Option[Resource] = None) = mmodel.add(statement(s, p, o, g))
-
-    class CachedMM {
+    // pattern is {thing} {relation} {owner}
+    def relate(sym: Symbol, p: IRI, o: IRI, lnf: => String = random): IRI = {
+        val s = iri(ns, lnf)
+        mmap(s) = sym
+        add(s, p, o)
+        add(s, SUBCLASSOF, p)
+        logger.trace(s"rel [${sym.owner.fullName}.$sym] as { s[$s] p[$p] o[$o] }")
+        s
     }
+
+    def relateType[T: TypeTag](): (IRI, Type) = relateType[T](random)
+    def relateType[T: TypeTag](lnf: => String): (IRI, Type) = {
+        val tpe = typeTag[T].tpe
+        val tid = relate(tpe.typeSymbol, TYPE, mmMapped, lnf)
+        rtmap(ru.rootMirror.runtimeClass(tpe)) = tid
+        (tid -> tpe)
+    }
+
+    def symOrNone(s: Symbol): Option[Symbol] = if (s != NoSymbol) Option(s) else None
+    def add(s: Resource, p: IRI, o: Value, g: Option[Resource] = None) = mmodel.add(statement(s, p, o, g))
 }
 
 class Test1(name: String, age: Int) {
     var x: String = _
+}
+
+class Test2(on: Boolean) {
+    def this(strFlag: String) = this(strFlag.toBoolean)
 }
 
 object testx {
@@ -167,7 +135,8 @@ object testx {
         val b = new Test1("bob", 99)
 
         val mm = new Metamodel()
-        mm.cascade(b)
+        mm.cascade[Test1]
+        mm.cascade[Test2]
 
         //mm.mmap.foreach(println)
 
@@ -183,7 +152,9 @@ object testx {
 
         //3 start with type
         // figure out what ctors are available
-        println(mm.ctors(classOf[Test1]))
+        println("1 " + mm.ctors(classOf[Test1]))
+        println("2 " + mm.ctors(classOf[Test2]))
+
 
 
         //        mm.mmodel.foreach(println)
@@ -200,4 +171,8 @@ the semantics of orm and case classes (wonder how slick does it?)
 
     * write to class parameters
     * write to setters
+ */
+
+/*
+caching may be able to be acheievd by query
  */

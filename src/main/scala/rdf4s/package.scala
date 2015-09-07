@@ -113,7 +113,7 @@ package object rdf4s {
     }
 
 
-    def random: String = random(4)
+    def random(): String = random(4)
     def random(len: Int): String = Random.alphanumeric.take(len).mkString
 
 
