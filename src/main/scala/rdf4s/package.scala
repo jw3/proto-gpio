@@ -2,6 +2,7 @@ import java.util.Date
 
 import org.openrdf.model._
 import org.openrdf.model.impl.{LinkedHashModelFactory, SimpleValueFactory}
+import rdf4s.{Metamodel, implicits}
 
 import scala.util.Random
 
