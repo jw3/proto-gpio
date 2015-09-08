@@ -9,6 +9,7 @@ import rdf4s.implicits._
 
 import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{currentMirror => mirror}
+import scala.reflect.{ClassTag, _}
 
 
 object Metamodel {
@@ -37,16 +38,11 @@ class Metamodel extends LazyLogging {
 
     def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = tmap.get(t).map(r => q(r, mmodel, mmap.get))
 
-    // another construction potential; noting the access of the symbol from the fqcn
-    def fromname(fqcn: String) = {
-        val clss = Class.forName(fqcn)
-        val s = mirror.classSymbol(clss)
-        s.info.members
-    }
-
-    // install is temporary, eventually metamodels are immutable and created with a builder
-    def install[T: TypeTag](): Unit = {
-        val (tid, tpe) = relateType[T]
+    // support both registration from literals and from string fqcn
+    def install(fqcn: String) = doInstall(ClassTag(Class.forName(fqcn)))
+    def install[T: ClassTag](): Unit = doInstall(classTag[T])
+    private def doInstall(c: ClassTag[_]): Unit = {
+        val (tid, tpe) = relateType(c)
 
         tpe.members
         .filter(_.isTerm).map(_.asTerm)
@@ -77,12 +73,14 @@ class Metamodel extends LazyLogging {
         s
     }
 
-    private def relateType[T: TypeTag]: (IRI, Type) = relateType[T](random())
-    private def relateType[T: TypeTag](lnf: => String): (IRI, Type) = {
-        val tpe = typeTag[T].tpe
-        val tid = relate(tpe.typeSymbol, TYPE, mmMapped, lnf)
-        tmap(mirror.runtimeClass(tpe)) = tid
-        tid -> tpe
+    private def relateType[T: ClassTag]: (IRI, Type) = relateType[T](random())
+    private def relateType[T: ClassTag](lnf: => String): (IRI, Type) = {
+        val tpe = classTag[T]
+        val rtclass = tpe.runtimeClass
+        val symbol = mirror.classSymbol(rtclass)
+        val tid = relate(symbol, TYPE, mmMapped, lnf)
+        tmap(tpe.runtimeClass) = tid
+        tid -> symbol.info
     }
 
     private def symOrNone(s: Symbol): Option[Symbol] = if (s != NoSymbol) Option(s) else None
