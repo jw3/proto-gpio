@@ -34,14 +34,16 @@ class Metamodel extends LazyLogging {
 
     initBuiltins()
 
-    def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = rtmap.get(t).map(r => q(r, mmodel, mmap.get(_)))
+    def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = rtmap.get(t).map(r => q(r, mmodel, mmap.get))
 
+    // another construction potential; noting the access of the symbol from the fqcn
     def fromname(fqcn: String) = {
         val clss = Class.forName(fqcn)
-        val symbol = mirror.classSymbol(clss)
+        mirror.classSymbol(clss)
     }
 
-    def install[T: TypeTag] = {
+    // install is temporary, eventually metamodels are immutable and created with a builder
+    def install[T: TypeTag](): Unit = {
         val (tid, tpe) = relateType[T]
 
         tpe.members
@@ -65,7 +67,7 @@ class Metamodel extends LazyLogging {
     }
 
     // pattern is {thing} {relation} {owner}
-    private def relate(sym: Symbol, p: IRI, o: IRI, lnf: => String = random): IRI = {
+    private def relate(sym: Symbol, p: IRI, o: IRI, lnf: => String = random()): IRI = {
         val s = iriOf(sym).getOrElse(iri(mmNamespace, lnf))
         mmap(s) = sym
         add(s, p, o)
@@ -74,12 +76,12 @@ class Metamodel extends LazyLogging {
         s
     }
 
-    private def relateType[T: TypeTag](): (IRI, Type) = relateType[T](random)
+    private def relateType[T: TypeTag]: (IRI, Type) = relateType[T](random())
     private def relateType[T: TypeTag](lnf: => String): (IRI, Type) = {
         val tpe = typeTag[T].tpe
         val tid = relate(tpe.typeSymbol, TYPE, mmMapped, lnf)
         rtmap(mirror.runtimeClass(tpe)) = tid
-        (tid -> tpe)
+        tid -> tpe
     }
 
     private def symOrNone(s: Symbol): Option[Symbol] = if (s != NoSymbol) Option(s) else None
