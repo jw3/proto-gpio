@@ -14,6 +14,7 @@ import scala.reflect.{ClassTag, _}
 
 object Metamodel {
     type LookupFn = Resource => Option[AnyRef]
+    type QueryFn[R] = (Resource, Model, LookupFn) => R
 
     val mmNamespace = "mm:"
     val mmMapped = iri(mmNamespace, "mapped")
@@ -36,7 +37,7 @@ class Metamodel extends LazyLogging {
 
     initBuiltins()
 
-    def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = tmap.get(t).map(r => q(r, mmodel, mmap.get))
+    def query[R](t: Class[_], q: QueryFn[R]): Option[R] = tmap.get(t).map(r => q(r, mmodel, mmap.get))
 
     // support both registration from literals and from string fqcn
     def install(fqcn: String) = doInstall(ClassTag(Class.forName(fqcn)))
