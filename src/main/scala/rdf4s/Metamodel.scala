@@ -25,21 +25,23 @@ object Metamodel {
 }
 
 
+// the requirement of TypeTag may get dropped back to ClassTag
 // prototyping a metamodel for use by rdf4s
 // this will likely be a separate project from the actual rdf library
 class Metamodel extends LazyLogging {
     val mmodel = model()
     val mmap = collection.mutable.Map[Resource, AnyRef]()
-    val rtmap = collection.mutable.Map[Class[_], Resource]()
+    val tmap = collection.mutable.Map[Class[_], Resource]()
 
     initBuiltins()
 
-    def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = rtmap.get(t).map(r => q(r, mmodel, mmap.get))
+    def query[R](t: Class[_], q: (Resource, Model, LookupFn) => R): Option[R] = tmap.get(t).map(r => q(r, mmodel, mmap.get))
 
     // another construction potential; noting the access of the symbol from the fqcn
     def fromname(fqcn: String) = {
         val clss = Class.forName(fqcn)
-        mirror.classSymbol(clss)
+        val s = mirror.classSymbol(clss)
+        s.info.members
     }
 
     // install is temporary, eventually metamodels are immutable and created with a builder
@@ -47,8 +49,7 @@ class Metamodel extends LazyLogging {
         val (tid, tpe) = relateType[T]
 
         tpe.members
-        .filter(_.isTerm)
-        .map(_.asTerm)
+        .filter(_.isTerm).map(_.asTerm)
         .filter(x => x.isVal || x.isVar)
         .map { x => x -> (symOrNone(x.getter) -> symOrNone(x.setter)) }
         .foreach { a =>
@@ -80,7 +81,7 @@ class Metamodel extends LazyLogging {
     private def relateType[T: TypeTag](lnf: => String): (IRI, Type) = {
         val tpe = typeTag[T].tpe
         val tid = relate(tpe.typeSymbol, TYPE, mmMapped, lnf)
-        rtmap(mirror.runtimeClass(tpe)) = tid
+        tmap(mirror.runtimeClass(tpe)) = tid
         tid -> tpe
     }
 
