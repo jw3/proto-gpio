@@ -19,8 +19,10 @@ package object rdf4s {
     def literal(label: String, lang: String)(implicit f: ValueFactory): Literal = f.createLiteral(label, lang)
     def literal(label: String, datatype: IRI)(implicit f: ValueFactory): Literal = f.createLiteral(label, datatype)
 
-    def literal(v: Date)(implicit f: ValueFactory): Literal = f.createLiteral(v)
-    def literal(v: AnyVal)(implicit f: ValueFactory): Literal = v match {
+    def value(v: Any)(implicit f: ValueFactory): Value = v match {
+        case v: Value => v
+        case v: String => f.createLiteral(v)
+        case v: Date => f.createLiteral(v)
         case v: Boolean => f.createLiteral(v)
         case v: Byte => f.createLiteral(v)
         case v: Short => f.createLiteral(v)
@@ -29,6 +31,7 @@ package object rdf4s {
         case v: Float => f.createLiteral(v)
         case v: Double => f.createLiteral(v)
     }
+
 
     def statement(s: Resource, p: IRI, o: Value, g: Option[Resource] = None)(implicit f: ValueFactory): Statement = f.createStatement(s, p, o, g.getOrElse(null))
 
@@ -102,7 +105,7 @@ package object rdf4s {
             this
         }
         def ><(o: AnyVal): gb = {
-            this.o = literal(o)
+            this.o = value(o)
             this
         }
         def ><(g: Resource): finisher = {

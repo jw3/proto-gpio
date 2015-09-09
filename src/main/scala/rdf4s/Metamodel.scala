@@ -24,6 +24,12 @@ object Metamodel {
     val mmProperty = iri(mmNamespace, "RdfProperty")
     val mmPropertyGet = iri(mmNamespace, s"${mmProperty.getLocalName}Get")
     val mmPropertySet = iri(mmNamespace, s"${mmProperty.getLocalName}Set")
+
+    val mmAnnotation = prop("anno")
+    val mmAnnotationProperty = prop("annoProp")
+    val mmAnnotates = prop("annotates")
+
+    def prop(ln: String): IRI = iri(mmNamespace, ln)
 }
 
 
@@ -39,11 +45,34 @@ class Metamodel extends LazyLogging {
 
     def query[R](t: Class[_], q: QueryFn[R]): Option[R] = tmap.get(t).map(r => q(r, mmodel, mmap.get))
 
+    def collectValues(t: Tree) = t match {
+        case Literal(c) => rdf4s.value(c.value)
+        case _ => println("unsupported annotations")
+    }
+
+
     // support both registration from literals and from string fqcn
     def install(fqcn: String) = doInstall(ClassTag(Class.forName(fqcn)))
     def install[T: ClassTag](): Unit = doInstall(classTag[T])
     private def doInstall(c: ClassTag[_]): Unit = {
         val (tid, tpe) = relateType(c)
+
+        val annoMapping = tpe.typeSymbol.annotations
+                          // map annotation to its contents (params as symbols)
+                          .map(a => a -> a.tree.tpe.typeSymbol.asClass.primaryConstructor.asMethod.paramLists.flatten)
+                          // trade the anno for its symbol; zip up the content symbols with their trees
+                          .map(ap => ap._1.tree.tpe.typeSymbol -> ap._2.zip(ap._1.tree.children.tail))
+
+        // map the children trees to their values (literals only)
+        val annoValues = annoMapping.map { z => z._1 -> z._2.map(v => v._1 -> collectValues(v._2)) }.map( x => x).toMap
+
+        annoMapping.foreach { am =>
+            val aid = relate(am._1, mmAnnotates, tid)
+            logger.trace(s"$tid is annotated with $aid")
+
+            val xxxx = annoValues(am._1)
+            println(xxxx)
+        }
 
         tpe.members
         .filter(_.isTerm).map(_.asTerm)
@@ -88,10 +117,10 @@ class Metamodel extends LazyLogging {
     private def add(s: Resource, p: IRI, o: Value, g: Option[Resource] = None) = mmodel.add(statement(s, p, o, g))
 
     private val irianno = typeOf[useIRI]
-    private def iriOf(s: Symbol): Option[IRI] = s.annotations.find(_.tree.tpe == irianno).map(bigHackForAnnoParam).map(iri)
+    private def iriOf(s: Symbol): Option[IRI] = s.annotations.find(_.tree.tpe == irianno).map(bigHackForIriOf).map(iri)
 
     // need to sort out the proper way to query the AST tree to get the param
-    private def bigHackForAnnoParam(a: Annotation): String = a.tree.children.last.children.last.toString().replaceAll("\"", "")
+    private def bigHackForIriOf(a: Annotation): String = a.tree.children.last.children.last.toString().replaceAll("\"", "")
 
     private def initBuiltins() = {
         relateType[Char]("Char")
