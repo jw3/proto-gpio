@@ -5,6 +5,8 @@ This repository is a sandbox to prototype and determine the usefulness of an [Ak
 There are several potential projects mixed into this repo
 
 * gpio4s - GPIO library for Scala
+* rdf4s - rdf utilities
+* mm4s - class metamodel
 * PiCfg - PI/GPIO configuration DSL
 * TemPi - Temperature monitoring utility
 * Common devices - Misc devices implemented on top of gpio4s and PiCfg
@@ -12,4 +14,4 @@ There are several potential projects mixed into this repo
 
 Currently [Pi4j](http://pi4j.com/) is being used on the backend, but care has been taken not to expose it in the APIs.
 
-There will potentially be an additional project that wraps the [PIGPIO](http://abyz.co.uk/rpi/pigpio) library with Scala sugar, resulting in Pi4s
+There will be an additional project that wraps the [PIGPIO](http://abyz.co.uk/rpi/pigpio) library with Scala sugar, resulting in Pi4s
