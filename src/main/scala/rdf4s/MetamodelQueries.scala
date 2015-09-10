@@ -22,11 +22,11 @@ object MetamodelQueries {
 
 
     // get all gets
-    def getters: QueryFn[Seq[Symbol]] = { (tid, mmodel, lookup) =>
+    def getters: QueryFn[Seq[MethodSymbol]] = { (tid, mmodel, lookup) =>
         mmodel.filter(null, mmProperty, tid).subjects
         .flatMap(aid => mmodel.filter(null, mmPropertyGet, aid).subjects)
         .flatMap(r => lookup(r))
-        .map { m => m.asInstanceOf[Symbol]
-        }.toSeq
+        .map(_.asInstanceOf[Symbol].asMethod)
+        .toSeq
     }
 }

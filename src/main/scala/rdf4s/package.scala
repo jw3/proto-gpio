@@ -113,6 +113,9 @@ package object rdf4s {
 
         implicit class RichModel(m: Model) {
             def toSeq(): Seq[Statement] = m.toSet.toSeq
+
+            def resourceObjects(): Set[Resource] =
+                m.objects().flatMap(o => if (o.isInstanceOf[Resource]) Option(o.asInstanceOf[Resource]) else None).toSet
         }
     }
 }

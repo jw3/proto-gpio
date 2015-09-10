@@ -1,8 +1,8 @@
 package rdf4s
 
 import com.typesafe.scalalogging.LazyLogging
-import org.openrdf.model.vocabulary.OWL
 import org.openrdf.model.vocabulary.RDF.TYPE
+import org.openrdf.model.vocabulary.{OWL, XMLSchema}
 import org.openrdf.model.{IRI, Model, Resource, Value}
 import rdf4s.Metamodel._
 import rdf4s.implicits._
@@ -88,8 +88,14 @@ class Metamodel extends LazyLogging {
         .foreach { a =>
             val aid = register(a._1, mmProperty)
             add(aid, mmProperty, tid)
-            a._2._1.foreach(relate(_, mmPropertyGet, aid))
-            a._2._2.foreach(relate(_, mmPropertySet, aid))
+            a._2._1.foreach { g =>
+                register(g, mmPropertyGet)
+                relate(g, mmPropertyGet, aid)
+            }
+            a._2._2.foreach { g =>
+                register(g, mmPropertySet)
+                relate(g, mmPropertySet, aid)
+            }
         }
 
         tpe.members
@@ -107,7 +113,9 @@ class Metamodel extends LazyLogging {
         }
     }
 
-    private def relate(sym: Symbol, p: IRI, o: Value, lnf: => String = random()): Unit = smap.get(sym).map(s => add(s, p, o))
+    private def relate(sym: Symbol, p: IRI, o: Value, lnf: => String = random()): Unit =
+        smap.get(sym).map(s =>
+            add(s, p, o))
 
     private def registerAnno(sym: Symbol, annotated: Resource, lnf: => String = random): Resource = {
         val aid = register(sym, mmAnnotation, lnf)
@@ -119,14 +127,18 @@ class Metamodel extends LazyLogging {
     }
     private def registerType[T: ClassTag](`type`: Resource): (Resource, Type) = registerType[T](`type`, random())
     private def registerType[T: ClassTag](`type`: Resource, lnf: => String): (Resource, Type) = {
-        val tpe = classTag[T]
-        val rtclass = tpe.runtimeClass
+        val rtclass = classTag[T].runtimeClass
         val symbol = mirror.classSymbol(rtclass)
         val tid = register(symbol, `type`, lnf)
-        tmap(tpe.runtimeClass) = tid
+        tmap(rtclass) = tid
         tid -> symbol.info
     }
 
+    private def register[T: ClassTag](`type`: Resource, lnf: => String): (Resource, Type) = {
+        val rtclass = classTag[T].runtimeClass
+        val symbol = mirror.classSymbol(rtclass)
+        register(symbol, `type`, lnf) -> symbol.info
+    }
 
     private def register(sym: Symbol, `type`: Resource, lnf: => String = random()): Resource = {
         smap.getOrElseUpdate(sym, {
@@ -156,13 +168,14 @@ class Metamodel extends LazyLogging {
 
 
     private def initBuiltins() = {
-        registerType[Char](mmBuiltin, "Char")
-        registerType[Byte](mmBuiltin, "Byte")
-        registerType[Short](mmBuiltin, "Short")
-        registerType[Int](mmBuiltin, "Int")
-        registerType[Long](mmBuiltin, "Long")
-        registerType[Float](mmBuiltin, "Float")
-        registerType[Double](mmBuiltin, "Doublt")
-        registerType[String](mmBuiltin, "String")
+        import XMLSchema._
+
+        register[Byte](BYTE, "Byte")
+        register[Short](SHORT, "Short")
+        register[Int](INT, "Int")
+        register[Long](LONG, "Long")
+        register[Float](FLOAT, "Float")
+        register[Double](DOUBLE, "Doublt")
+        register[String](STRING, "String")
     }
 }
