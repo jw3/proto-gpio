@@ -1,8 +1,7 @@
 package rdf4s
 
-import org.openrdf.model.{Model, Resource}
 import org.scalatest.WordSpec
-import rdf4s.Metamodel.{QueryFn, LookupFn}
+import rdf4s.Metamodel.QueryFn
 
 import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
