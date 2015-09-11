@@ -56,7 +56,7 @@ class Metamodel extends LazyLogging {
 
     // support both registration from literals and from string fqcn
     def install(fqcn: String) = doInstall(ClassTag(Class.forName(fqcn)))
-    def install[T: ClassTag](): Unit = doInstall(classTag[T])
+    def install[T: ClassTag]: Unit = doInstall(classTag[T])
     private def doInstall(c: ClassTag[_]): Unit = {
         val (tid, tpe) = registerType(mmMapped)(c)
 

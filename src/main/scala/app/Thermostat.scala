@@ -11,6 +11,7 @@ import gpio4s.Device.{DeviceInstallFailed, DeviceInstalled, DeviceMessage, Insta
 import gpio4s.pi4j._
 import gpio4s.{Configure, Models, Pi}
 import picfg.PiCfg.Directions.output
+import rdf4s.Metamodel
 import tempi.Reader.{Register, Subscribe}
 import tempi.devices.DS18b20
 import tempi.{Reader, Reading}
@@ -44,6 +45,7 @@ object Thermostat extends LazyLogging {
         // create a temperature device, and hook it up to the dashboard
         val devId = config.getString("tempi.device")
         reader ! Register(devId, DS18b20(devId))
+        reader.tell(Subscribe(devId), History())
 
         // install a SainSmart 4channel relay on the pi
         val info = RelaySS1982a.info("relay", (11, 12, 13, 14))
@@ -54,19 +56,6 @@ object Thermostat extends LazyLogging {
             case DeviceInstallFailed(id, reason) =>
                 logger.error(s"device $id install failed", reason)
         }
-    }
-
-    /**
-     * actor that converts readings into UI updates
-     */
-    class DashboardUpdater extends Actor with LazyLogging {
-        def receive: Receive = {
-            case Reading(id, c, f, t) =>
-                logger.info(s"received temp update [${c}c/${f}f}] for dev[$id] at [$t]")
-        }
-    }
-    object DashboardUpdater {
-        def apply()(implicit sys: ActorSystem) = sys.actorOf(Props[DashboardUpdater])
     }
 
     /**
@@ -93,5 +82,24 @@ object Thermostat extends LazyLogging {
     }
     object RelayUpdater {
         def apply(relay: ActorRef)(implicit sys: ActorSystem) = sys.actorOf(Props(classOf[RelayUpdater], relay))
+    }
+
+    class History extends Actor with LazyLogging {
+        import rdf4s.implicits._
+        val model = rdf4s.model()
+
+        case class Record(val id: String, val temp: Double, val time: Long)
+
+        implicit val mm = new Metamodel
+        mm.install[Record]
+
+        def receive: Receive = {
+            case Reading(id, c, f, t) =>
+                rdf4s.ogm.write(Record(id, c, t)).map(_._2).foreach(model.addAll)
+                logger.info(s"logging temp update [${c}c/${f}f}] for dev[$id] at [$t]")
+        }
+    }
+    object History {
+        def apply()(implicit sys: ActorSystem) = sys.actorOf(Props[History])
     }
 }
