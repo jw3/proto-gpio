@@ -20,8 +20,8 @@ class DS18b20(id: String, source: Source) extends Actor with LazyLogging {
 
 object DS18b20 {
     val regex = """t=(\d+)""".r.unanchored
-    def props(id: String, source: Source) = Props(classOf[DS18b20], id, source)
-    def apply(id: String, source: Source)(implicit sys: ActorSystem) = sys.actorOf(props(id, source))
+    def props(id: String) = Props(classOf[DS18b20], id, Source.fromFile(s"/sys/bus/w1/devices/$id/w1_slave"))
+    def apply(id: String)(implicit sys: ActorSystem) = sys.actorOf(props(id))
 
     case class DS18b20Reading(dev: String, v: Int) extends Reading {
         val t: Long = System.currentTimeMillis()

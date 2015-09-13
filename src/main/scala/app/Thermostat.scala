@@ -3,6 +3,7 @@ package app
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import devices.RelaySS1982a
 import devices.RelaySS1982a.In1
@@ -16,7 +17,6 @@ import tempi.{Reader, Reading}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
-import scala.io.Source
 
 /**
  * Model a Thermostat.  There is a single temperature device attached
@@ -27,6 +27,7 @@ object Thermostat extends LazyLogging {
     def main(args: Array[String]) {
         implicit val timeout = Timeout(10 seconds)
         implicit val system = ActorSystem("TempMonitorApp")
+        val config = ConfigFactory.load("tempi.conf")
 
         // create a new Pi
         val pi = Pi(Models.bRev2, pi4jPins())
@@ -40,10 +41,9 @@ object Thermostat extends LazyLogging {
         // create the temp reader
         val reader = Reader()
 
-        // create a temp device, and hook it up to the dashboard
-        val devId = "01"
-        reader ! Register(devId, DS18b20(devId, Source.fromFile("/dev/w1/...")))
-        reader.tell(Subscribe(devId), DashboardUpdater())
+        // create a temperature device, and hook it up to the dashboard
+        val devId = config.getString("tempi.device")
+        reader ! Register(devId, DS18b20(devId))
 
         // install a SainSmart 4channel relay on the pi
         val info = RelaySS1982a.info("relay", (11, 12, 13, 14))
