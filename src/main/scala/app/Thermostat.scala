@@ -5,7 +5,7 @@ import java.nio.file.Paths
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.LazyLogging
 import devices.RelaySS1982a
 import devices.RelaySS1982a.In1
@@ -13,6 +13,8 @@ import gpio4s.Device.{DeviceInstallFailed, DeviceInstalled, DeviceMessage, Insta
 import gpio4s.pi4j._
 import gpio4s.{Models, Pi}
 import net.ceedubs.ficus.Ficus._
+import org.openrdf.repository.sail.SailRepository
+import org.openrdf.sail.memory.MemoryStore
 import rdf4s.Metamodel
 import tempi.Reader.{Register, Subscribe}
 import tempi.devices.DS18b20
@@ -87,21 +89,31 @@ object Thermostat extends LazyLogging {
     }
 
     class History extends Actor with LazyLogging {
-        import rdf4s.implicits._
-        val model = rdf4s.model()
+        import History._
+        import rdf4s.implicits.modelFactory
 
-        case class Record(id: String, temp: Double, time: Long)
-
-        implicit val mm = new Metamodel
-        mm.install[Record]
+        val repo = new SailRepository(new MemoryStore())
+        val conn = {
+            repo.initialize()
+            repo.getConnection
+        }
+        implicit val valueFactory = repo.getValueFactory
 
         def receive: Receive = {
             case Reading(id, c, f, t) =>
-                rdf4s.ogm.write(Record(id, c, t)).map(_._2).foreach(model.addAll)
+                rdf4s.ogm.write(Record(id, c, t)).foreach(r => conn.add(r._2))
                 logger.info(s"logging temp update [${c}c/${f}f}] for dev[$id] at [$t]")
         }
     }
     object History {
         def apply()(implicit sys: ActorSystem) = sys.actorOf(Props[History])
+
+        case class Record(id: String, temp: Double, time: Long)
+
+        implicit val mm: Metamodel = {
+            val mm = new Metamodel
+            mm.install[Record]
+            mm
+        }
     }
 }
