@@ -16,7 +16,7 @@ class Reader extends Actor with LazyLogging {
 
     def receive: Receive = {
         case m @ Register(id, device) =>
-            logger.info(s"$m")
+            logger.info(s"register $m")
             devices(id) = device
 
         case m @ Subscribe(id) =>
@@ -42,6 +42,8 @@ class Reader extends Actor with LazyLogging {
 
     def scheduleUpdate(id: String, interval: FiniteDuration) =
         context.system.scheduler.schedule(5 seconds, interval, self, Refresh(id))(context.system.dispatcher)
+
+    override def preStart(): Unit = logger.trace(s"starting TempReader")
 }
 
 object Reader {

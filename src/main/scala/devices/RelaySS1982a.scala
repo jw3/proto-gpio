@@ -1,9 +1,10 @@
 package devices
 
-import akka.actor.ActorRef
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import devices.RelaySS1982a._
 import gpio4s.{Device, DeviceInfo, DigitalWrite, PinAllocation}
+import net.ceedubs.ficus.Ficus._
 import picfg.PiCfg.Directions.input
 
 
@@ -26,19 +27,24 @@ object RelaySS1982a {
             throw new IllegalArgumentException("num should be between 1-4")
     }
 
-    def info(_id: String, t4: (Int, Int, Int, Int)) = {
+    def info(rid: String, sconf: Config) = {
         import picfg.PiCfg._
+        val portsToPins = portToPin(sconf.getConfig(s"thermo.$rid"))
 
         new DeviceInfo() {
-            def id: String = _id
+            def id: String = rid
             def impl: Class[_ <: Device] = classOf[RelaySS1982a]
-            def conf: Config = gpio { pin =>
-                pin number t4._1 digital input
-                pin number t4._2 digital input
-                pin number t4._3 digital input
-                pin number t4._4 digital input
-            }
+            def conf: Config = gpio(pin => portsToPins.values.foreach(pin number _ digital input)).withFallback(sconf)
         }
+    }
+
+    // this could be moved out of the 4port relay
+    def portToPin(conf: Config): Map[Port, Int] = {
+        val count = conf.as[Int]("ports.count")
+        val pairs = for (i <- 1 to count) yield {
+            port(i) -> conf.as[Int](s"ports.$i.pin")
+        }
+        pairs.toMap
     }
 }
 
@@ -47,19 +53,20 @@ object RelaySS1982a {
  * This relay closes when pulled low, and opens when high or off.
  * @author wassj
  */
-class RelaySS1982a(id: String, conf: Config, pins: PinAllocation) extends Device {
-    assert(pins.size == 4)
-    val ports: Map[Port, ActorRef] = pins.map(t => port(t._1) -> t._2)
+class RelaySS1982a(id: String, conf: Config, pins: PinAllocation) extends Device with LazyLogging {
+    val portsToPins = portToPin(conf.getConfig(s"thermo.$id"))
+    val portsToGPIO = portsToPins.map(v => v._1 -> pins(v._2))
+    logger.trace(s"creating SS1982a relay with config[$conf]")
 
     // todo should register listener on each pin to track state changes
 
     def receive: Receive = {
-        case Engage(p @ _*) => p.distinct.map(ports(_)).foreach(_ ! DigitalWrite(-1, false))
-        case Release(p @ _*) => p.distinct.map(ports(_)).foreach(_ ! DigitalWrite(-1, true))
+        case Engage(p @ _*) => p.distinct.map(portsToGPIO(_)).foreach(_ ! DigitalWrite(-1, false))
+        case Release(p @ _*) => p.distinct.map(portsToGPIO(_)).foreach(_ ! DigitalWrite(-1, true))
     }
 
     override def preStart(): Unit = {
         // disable all pins (high) on start
-        ports.values.foreach(_ ! DigitalWrite(-1, true))
+        portsToGPIO.values.foreach(_ ! DigitalWrite(-1, true))
     }
 }

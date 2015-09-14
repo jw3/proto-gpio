@@ -1,16 +1,18 @@
 package app
 
+import java.nio.file.Paths
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.LazyLogging
 import devices.RelaySS1982a
 import devices.RelaySS1982a.In1
 import gpio4s.Device.{DeviceInstallFailed, DeviceInstalled, DeviceMessage, InstallDevice}
 import gpio4s.pi4j._
-import gpio4s.{Configure, Models, Pi}
-import picfg.PiCfg.Directions.output
+import gpio4s.{Models, Pi}
+import net.ceedubs.ficus.Ficus._
 import rdf4s.Metamodel
 import tempi.Reader.{Register, Subscribe}
 import tempi.devices.DS18b20
@@ -20,39 +22,40 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
 
 /**
+ * Reference Implementation / Sample Application
+ *
  * Model a Thermostat.  There is a single temperature device attached
  * and a threshold assigned.  When the threshold is exceeded an attached
  * relay is engaged until the threshold is within range again.
  */
 object Thermostat extends LazyLogging {
     def main(args: Array[String]) {
+        val config =
+            if (args.length == 1) ConfigFactory.parseFile(Paths.get(s"${args(0)}/thermostat.conf").toFile)
+            else ConfigFactory.load("src/main/dist/conf/thermostat.conf")
+
         implicit val timeout = Timeout(10 seconds)
         implicit val system = ActorSystem("TempMonitorApp")
-        val config = ConfigFactory.load("tempi.conf")
 
-        // create a new Pi
+        logger.trace("starting thermostat")
+
+        // create a new Pi and temp reader
         val pi = Pi(Models.bRev2, pi4jPins())
-
-        // configure the pi with the dsl
-        pi ! Configure({ pin =>
-            pin number 5 digital output
-            pin number 6 digital output
-        })
-
-        // create the temp reader
         val reader = Reader()
 
         // create a temperature device, and hook it up to the dashboard
-        val devId = config.getString("tempi.device")
+        val devId = config.getString("thermo.ds18b20")
         reader ! Register(devId, DS18b20(devId))
         reader.tell(Subscribe(devId), History())
 
         // install a SainSmart 4channel relay on the pi
-        val info = RelaySS1982a.info("relay", (11, 12, 13, 14))
+        val info = RelaySS1982a.info("relay", config)
         val response = pi ? InstallDevice(info)
         response.mapTo[DeviceMessage].onSuccess {
             case DeviceInstalled(id, ref) =>
-                reader.tell(Subscribe(devId), RelayUpdater(ref))
+                val temp = config.as[Int]("thermo.high")
+                val lower = config.as[Int]("thermo.lower")
+                reader.tell(Subscribe(devId), RelayUpdater(ref, temp, lower))
             case DeviceInstallFailed(id, reason) =>
                 logger.error(s"device $id install failed", reason)
         }
@@ -61,9 +64,7 @@ object Thermostat extends LazyLogging {
     /**
      * actor that turns readings into physical changes through the attached relay
      */
-    class RelayUpdater(relay: ActorRef) extends Actor with LazyLogging {
-        val desiredTemp = 50
-        val lowerBounds = 10
+    class RelayUpdater(relay: ActorRef, desiredTemp: Double, lowerBounds: Double) extends Actor with LazyLogging {
         var burning = false
 
         def receive: Receive = {
@@ -81,14 +82,15 @@ object Thermostat extends LazyLogging {
         }
     }
     object RelayUpdater {
-        def apply(relay: ActorRef)(implicit sys: ActorSystem) = sys.actorOf(Props(classOf[RelayUpdater], relay))
+        def apply(relay: ActorRef, temp: Double, lower: Double)(implicit sys: ActorSystem) =
+            sys.actorOf(Props(classOf[RelayUpdater], relay, temp, lower))
     }
 
     class History extends Actor with LazyLogging {
         import rdf4s.implicits._
         val model = rdf4s.model()
 
-        case class Record(val id: String, val temp: Double, val time: Long)
+        case class Record(id: String, temp: Double, time: Long)
 
         implicit val mm = new Metamodel
         mm.install[Record]
