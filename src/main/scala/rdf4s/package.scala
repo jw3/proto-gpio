@@ -2,6 +2,7 @@ import java.util.Date
 
 import org.openrdf.model._
 import org.openrdf.model.impl.{LinkedHashModelFactory, SimpleValueFactory}
+import org.openrdf.model.vocabulary.XMLSchema._
 
 import scala.collection.JavaConversions._
 import scala.util.Random
@@ -28,6 +29,19 @@ package object rdf4s {
         case v: Long => f.createLiteral(v)
         case v: Float => f.createLiteral(v)
         case v: Double => f.createLiteral(v)
+    }
+
+    def devalue(v: Value): Any = v match {
+        case v: Literal => v.getDatatype match {
+            case BYTE => v.byteValue
+            case SHORT => v.shortValue
+            case INT => v.intValue
+            case LONG => v.longValue
+            case FLOAT => v.floatValue
+            case DOUBLE => v.doubleValue
+            case STRING => v.stringValue
+        }
+        case _ => v
     }
 
     def statement(s: Resource, p: IRI, o: Value, g: Option[Resource] = None)(implicit f: ValueFactory): Statement = f.createStatement(s, p, o, g.getOrElse(null))
