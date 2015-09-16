@@ -10,7 +10,16 @@ class MetamodelSpec extends MetamodelTest with Matchers {
         res shouldBe defined
         res.get.size shouldBe 1
     }
+
+    mmTest("no arg ctor") {
+        install[EmptyCtor]
+        val res = mm.query(classOf[EmptyCtor], MetamodelQueries.ctors)
+        res shouldBe defined
+        res.get.size shouldBe 1
+        res.get.head._2 shouldBe empty
+    }
 }
 
 
+class EmptyCtor()
 class GetterOnPublicField {@useIRI("ns:f") val f = random()}

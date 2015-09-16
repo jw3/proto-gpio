@@ -101,14 +101,20 @@ class Metamodel extends LazyLogging {
         tpe.members
         .filter(_.isConstructor)
         .map(_.asMethod)
+        // only allow the primary ctor?
+        //.filter(_.isPrimaryConstructor)
         .map { c =>
             register(c, mmCtor)
             c -> relate(c, mmCtor, tid)
         }
         .foreach { t =>
             t._1.paramLists.head.foreach { c =>
-                val cpid = register(c, mmCtorParam)
-                add(cpid, mmCtorParam, tid)
+                // rather than using the ctor symbol, which is not useful elsewhere
+                // go up to the class symbol and get the term that matches the param
+                c.owner.owner.info.members.find(_.fullName == c.fullName).foreach{ term =>
+                    val cpid = register(term, mmCtorParam)
+                    add(cpid, mmCtorParam, smap(t._1))
+                }
             }
         }
     }

@@ -3,9 +3,9 @@ package rdf4s
 import com.typesafe.scalalogging.LazyLogging
 import org.openrdf.model._
 import org.openrdf.model.vocabulary.RDF
-import rdf4s.implicits.RichModel
 
 import scala.collection.JavaConversions._
+import scala.reflect.runtime.universe._
 import scala.reflect.runtime.{currentMirror => mirror}
 import scala.reflect.{ClassTag, _}
 
@@ -40,20 +40,40 @@ object ogm extends LazyLogging {
                     rdf
                 }
             }
+            println(m)
             s -> m
         }
     }
 
-    def read[T: ClassTag](id: IRI, m: Model)(implicit mm: Metamodel): Option[T] = {
-        m.filter(id, null, null)
-        val x = m.filter(id, RDF.TYPE, null).resourceObjects().flatMap(o4t(_))
-        mm.query(classTag[T].runtimeClass, MetamodelQueries.ctors)
-        None
+    def allOf[T: ClassTag](m: Model)(implicit mm: Metamodel): Option[Seq[T]] = {
+        val t = classTag[T].runtimeClass
+        mm.tmap.get(t).map { r =>
+            m.filter(null, RDF.TYPE, r)
+            .subjects
+            .flatMap(read[T](_, m))
+            .toSeq
+        }
     }
 
-    def o4t(t: Resource)(implicit mm: Metamodel): Option[AnyRef] = {
-        // picking a ctor;
-        //
-        None
+    def read[T: ClassTag](id: Resource, m: Model)(implicit mm: Metamodel): Option[T] = {
+        mm.query(classTag[T].runtimeClass, MetamodelQueries.ctors).map { ctors =>
+            val ctor = ctors.head
+            val args = ctor._2
+                       .flatMap(mm.smap.get)
+                       .filter(_.isInstanceOf[IRI])
+                       .map(_.asInstanceOf[IRI])
+                       .flatMap(p => m.filter(id, p, null).objects())
+                       .map(devalue)
+            o4t[T](ctor._1, args).get
+        }
+    }
+
+    def o4t[T](tid: Resource, args: Seq[Any])(implicit mm: Metamodel): Option[T] = {
+        mm.mmap.get(tid)
+        .map(_.asInstanceOf[MethodSymbol])
+        .map(ctor => mirror.reflectClass(ctor.owner.asClass)
+                     .reflectConstructor(ctor)
+                     .apply(args: _*))
+        .map(_.asInstanceOf[T])
     }
 }
