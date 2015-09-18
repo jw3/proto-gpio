@@ -29,4 +29,6 @@ dependencies {
     compile 'org.openrdf.sesame:sesame-repository-api:4.0.0-M1'
     compile 'org.openrdf.sesame:sesame-sail-memory:4.0.0-M1'
     compile 'org.openrdf.sesame:sesame-repository-sail:4.0.0-M1'
+
+    compile 'io.airlift:airline:0.7'
 }
