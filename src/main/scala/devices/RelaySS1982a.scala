@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import devices.RelaySS1982a._
 import gpio4s.{Device, DeviceInfo, DigitalWrite, PinAllocation}
 import net.ceedubs.ficus.Ficus._
-import picfg.PiCfg.Directions.input
+import picfg.Directions.input
 
 
 object RelaySS1982a {
@@ -28,7 +28,7 @@ object RelaySS1982a {
     }
 
     def info(rid: String, sconf: Config) = {
-        import picfg.PiCfg._
+        import picfg._
         val portsToPins = portToPin(sconf.getConfig(s"thermo.$rid"))
 
         new DeviceInfo() {

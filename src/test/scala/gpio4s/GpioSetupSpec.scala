@@ -2,11 +2,11 @@ package gpio4s
 
 import akka.actor.{ActorContext, ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import gpio4s.Models.bRev2
+import gpio4s.PiModels.bRev2
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{Matchers, WordSpecLike}
-import picfg.PiCfg.Directions.input
-import picfg.PiCfg._
+import picfg.Directions.input
+import picfg._
 
 
 /**

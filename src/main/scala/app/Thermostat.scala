@@ -11,7 +11,7 @@ import devices.RelaySS1982a
 import devices.RelaySS1982a.In1
 import gpio4s.Device.{DeviceInstallFailed, DeviceInstalled, DeviceMessage, InstallDevice}
 import gpio4s.pi4j._
-import gpio4s.{Models, Pi}
+import gpio4s.{PiModels, Pi}
 import net.ceedubs.ficus.Ficus._
 import org.openrdf.repository.sail.SailRepository
 import org.openrdf.sail.memory.MemoryStore
@@ -42,7 +42,7 @@ object Thermostat extends LazyLogging {
         logger.trace("starting thermostat")
 
         // create a new Pi and temp reader
-        val pi = Pi(Models.bRev2, pi4jPins())
+        val pi = Pi(PiModels.bRev2, Pi4jPinProducer())
         val reader = Reader()
 
         // create a temperature device, and hook it up to the dashboard

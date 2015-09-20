@@ -7,8 +7,8 @@ import devices.RelaySS1982a.{In1, In2, In3, In4}
 import gpio4s.PinAllocation
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{Matchers, WordSpecLike}
-import picfg.PiCfg.Directions.input
-import picfg.PiCfg._
+import picfg.Directions.input
+import picfg._
 
 class RelaySS1982aPortMappingSpec extends TestKit(ActorSystem(getClass.getSimpleName.dropRight(1)))
                                           with ImplicitSender with WordSpecLike with Matchers with MockFactory {

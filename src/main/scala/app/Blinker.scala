@@ -3,7 +3,7 @@ package app
 import akka.actor._
 import gpio4s._
 import gpio4s.pi4j._
-import picfg.PiCfg.Directions.output
+import picfg.Directions.output
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
@@ -15,7 +15,7 @@ object Blinker extends App {
     implicit val system = ActorSystem("app01")
     val pinNum = 8
 
-    val pi = Pi(Models.bRev2, pi4jPins())
+    val pi = Pi(PiModels.bRev2, Pi4jPinProducer())
     pi ! Configure({ pin =>
         pin number pinNum digital output
     })

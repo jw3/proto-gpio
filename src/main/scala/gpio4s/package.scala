@@ -1,15 +1,14 @@
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
-import com.pi4j.io.gpio.event.{GpioPinDigitalStateChangeEvent, GpioPinListener, GpioPinListenerDigital}
 import com.typesafe.config.Config
-import picfg.PiCfg
-import picfg.PiCfg.PinDef
+import picfg._
 
 
 package object gpio4s {
-    type PinAllocation = Map[Int, ActorRef]
+    type PinRef = ActorRef
+    type PinAllocation = Map[Int, PinRef]
 
     trait PinProducer {
-        def get(num: Int)(implicit context: ActorContext): ActorRef
+        def get(num: Int)(implicit context: ActorContext): PinRef
     }
 
     trait DeviceInfo {
@@ -19,6 +18,7 @@ package object gpio4s {
 
         final def props(pins: PinAllocation): Props = Props(impl, id, conf, pins)
     }
+
     /**
      * Tagging interface that identifies a Device Actor
      * A Device requires a ctor that takes
@@ -36,7 +36,6 @@ package object gpio4s {
     // pi events
     case class Configure(conf: Config)
     object Configure {
-        import PiCfg._
         def apply(fn: PinNumberBuilder => Unit): Configure = Configure(gpio(fn))
     }
     case class Subscribe(pin: Int)
@@ -51,12 +50,4 @@ package object gpio4s {
 
     // responses
     case class DigitalEvent(pin: Int, state: Boolean)
-
-    ////
-
-    implicit def DigitalListenerFunction(f: GpioPinDigitalStateChangeEvent => Unit): GpioPinListener = {
-        new GpioPinListenerDigital {
-            def handleGpioPinDigitalStateChangeEvent(e: GpioPinDigitalStateChangeEvent): Unit = f(e)
-        }
-    }
 }

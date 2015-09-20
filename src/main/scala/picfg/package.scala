@@ -1,36 +1,23 @@
-package picfg
-
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
-import picfg.PiCfg.DigitalState.DigitalState
-import picfg.PiCfg.Directions.Direction
-import picfg.PiCfg.Layouts.Layout
-import picfg.PiCfg.Modes.Mode
-import picfg.PiCfg.Pulls.Pull
+import picfg.DigitalState.DigitalState
+import picfg.Directions.Direction
+import picfg.Layouts.Layout
+import picfg.Modes.Mode
+import picfg.Pulls.Pull
 
 import scala.collection.JavaConversions._
 
 /**
- * DSL modeling the configuration of Pi pins
  * @author wassj
  */
-object PiCfg {
+package object picfg {
     case class PinDef(num: Int,
                       mode: Mode,
                       dir: Direction,
                       state: Option[AnyRef],
                       pull: Option[Pull])
 
-    /**
-     * entry point to dsl
-     * @param fn
-     * @return
-     */
-    def gpio(fn: PinNumberBuilder => Unit): Config = {
-        val b = new PinBuilder
-        fn(b)
-        b.build
-    }
 
     implicit class RichPins(conf: Config) {
         def pins(): Seq[PinDef] = conf.getConfigList("pins").map { cfg =>
@@ -45,6 +32,17 @@ object PiCfg {
             pins.foreach(fn)
             conf
         }
+    }
+
+    /**
+     * entry point to dsl
+     * @param fn
+     * @return
+     */
+    def gpio(fn: PinNumberBuilder => Unit): Config = {
+        val b = new PinBuilder
+        fn(b)
+        b.build
     }
 
     object Layouts {

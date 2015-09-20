@@ -1,6 +1,6 @@
 package gpio4s
 
-object Models {
+object PiModels {
     /**
      * Describes a Pi model
      */
