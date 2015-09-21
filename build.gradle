@@ -1,9 +1,20 @@
 apply plugin: 'scala'
 apply plugin: 'java'
 apply plugin: 'application'
-apply from: 'gradle/ext/installDistRemote.gradle'
+apply plugin: 'org.hidetake.ssh'
 
 mainClassName = driverClass
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'org.hidetake:gradle-ssh-plugin:1.1.3'
+    }
+}
 
 repositories {
     mavenLocal()
@@ -31,4 +42,45 @@ dependencies {
     compile 'org.openrdf.sesame:sesame-repository-sail:4.0.0-M1'
 
     compile 'io.airlift:airline:0.7'
+}
+
+ssh.settings {
+    dryRun = true
+}
+
+remotes {
+    def remoteUsername = 'pi'
+    def remotePassword = 'raspberry'
+
+    master {
+        role 'master'
+        host = '192.168.0.12'
+        user = remoteUsername
+        password= remotePassword
+    }
+    worker01 {
+        role 'worker'
+        host = '192.168.0.13'
+        user = remoteUsername
+        password= remotePassword
+    }
+}
+
+task prepareScripts(type: Copy) {
+    from 'gradle/scripts'
+    into buildDir
+    expand project.properties
+    eachFile { println("\t- ${it.name}") }
+}
+
+task deploy (group: 'distribution', dependsOn: [clean, distTar, prepareScripts]) {
+    def dist = "$buildDir/distributions/${distributions.main.baseName}.tar"
+
+    ssh.run {
+        session(remotes.role('worker')) { r ->
+            put dist, copyArchivesTo
+            put "$buildDir/deploy-distribution", '/usr/local/bin'
+            execute 'deploy-distribution'
+        }
+    }
 }
