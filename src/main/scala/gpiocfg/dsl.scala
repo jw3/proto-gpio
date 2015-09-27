@@ -1,28 +1,50 @@
-package picfg
+package gpiocfg
 
 import com.typesafe.config.Config
-import picfg.dsl.{AnalogInitializer, DigitalInitializer, PinModeBuilder, PinNumberBuilder}
+import gpiocfg.dsl.{AnalogInitializer, DigitalInitializer, PinModeBuilder, PinNumberBuilder}
 
 /**
+ * DSL describing the configuration of GPIO pins
+ *
+ * usage:
+ *
+ * gpio { pin =>
+ * pin number 1 digital input
+ * pin nuber 2 analog output
+ * }
+ *
+ *
+ *
+ *
+ *
  * @author wassj
  */
 object dsl {
 
+    /**
+     * entrypoint to DSL
+     * @param fn Function that configures the builder
+     * @return
+     */
     def gpio(fn: PinNumberBuilder => Unit): Config = {
         val b = new PinBuilder
         fn(b)
         b.build
     }
 
-    sealed trait DslComponent extends Product {
-        this: Product =>
-        val uid = productPrefix
-    }
 
+    /**
+     * describes a gpio numbering scheme
+     * todo;; this will be opened up to be client extensible
+     */
     sealed trait Layout extends DslComponent
-    case object pi4j extends Layout
     case object bcom extends Layout
+    case object pi4j extends Layout
 
+
+    /**
+     * describes the mode of a pin (digital/analog)
+     */
     sealed trait Mode extends DslComponent
     object Modes {
         case object digital extends Mode
@@ -30,6 +52,10 @@ object dsl {
         case object pwm extends Mode
     }
 
+
+    /**
+     * describes the direction (input/output) of a pin
+     */
     sealed trait Direction extends DslComponent {
         def isInput = this == input
         def isOutput = this == output
@@ -38,12 +64,18 @@ object dsl {
     case object output extends Direction
 
 
+    /**
+     * describes the internal resistor state (pull up/down or off)
+     */
     sealed trait Pull extends DslComponent
     case object off extends Pull
     case object up extends Pull
     case object down extends Pull
 
 
+    /**
+     * describes the digital state (hi or low) of a pin
+     */
     sealed trait DigitalState extends DslComponent
     case object hi extends DigitalState
     case object low extends DigitalState
@@ -66,14 +98,22 @@ object dsl {
     trait DigitalInitializer extends Initializer {
         def set(v: DigitalState): Initializer
     }
+
     trait AnalogInitializer extends Initializer {
         def value(v: Double): Initializer
     }
 }
 
-/*private*/ class PinBuilder extends PinNumberBuilder with PinModeBuilder with DigitalInitializer with AnalogInitializer {
+// internal API
+sealed trait DslComponent extends Product {
+    this: Product =>
+    val uid = productPrefix
+}
+
+// default implementation of the dsl
+private class PinBuilder extends PinNumberBuilder with PinModeBuilder with DigitalInitializer with AnalogInitializer {
     import com.typesafe.config.{ConfigFactory => cf, ConfigValueFactory => cvf}
-    import picfg.dsl._
+    import gpiocfg.dsl._
 
     import scala.collection.JavaConversions._
 

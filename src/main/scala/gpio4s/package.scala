@@ -1,8 +1,8 @@
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.typesafe.config.Config
-import picfg.dsl._
-import picfg.dsl.PinNumberBuilder
-import picfg.io.PinDef
+import gpiocfg.dsl._
+import gpiocfg.dsl.PinNumberBuilder
+import gpiocfg.io.PinCfg
 
 
 package object gpio4s {
@@ -48,7 +48,7 @@ package object gpio4s {
     case class DigitalRead(pin: Int)
 
     private[gpio4s] case class Reset(pin: Int) extends ModeEvent
-    private[gpio4s] case class Setup(pin: PinDef) extends ModeEvent
+    private[gpio4s] case class Setup(pin: PinCfg) extends ModeEvent
 
     // responses
     case class DigitalEvent(pin: Int, state: Boolean)

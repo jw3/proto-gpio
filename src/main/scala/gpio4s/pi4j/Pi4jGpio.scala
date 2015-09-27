@@ -5,7 +5,7 @@ import com.pi4j.io.gpio.PinMode
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent
 import com.pi4j.io.gpio.impl.GpioPinImpl
 import gpio4s._
-import picfg.io.PinDef
+import gpiocfg.io.PinCfg
 
 /**
  * Actor interface to Pi4j GPIO
@@ -26,7 +26,7 @@ class Pi4jGpio(gpio: GpioPinImpl) extends Actor {
         case Setup(p) => setup(p)
     }
 
-    def setup(pin: PinDef) = {
+    def setup(pin: PinCfg) = {
         pin.mode match {
             case digital if pin.dir.isInput => {
                 gpio.export(PinMode.DIGITAL_INPUT)

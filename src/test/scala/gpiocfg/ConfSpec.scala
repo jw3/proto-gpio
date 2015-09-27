@@ -1,9 +1,9 @@
-package picfg
+package gpiocfg
 
 import org.scalatest.{Matchers, WordSpecLike}
-import picfg.dsl.Modes.digital
-import picfg.dsl._
-import picfg.io._
+import gpiocfg.dsl.Modes.digital
+import gpiocfg.dsl._
+import gpiocfg.io._
 
 
 /**

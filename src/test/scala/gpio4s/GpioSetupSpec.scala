@@ -5,8 +5,8 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import gpio4s.PiModels.bRev2
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{Matchers, WordSpecLike}
-import picfg.dsl._
-import picfg.io.RichPins
+import gpiocfg.dsl._
+import gpiocfg.io.RichPins
 
 
 /**
