@@ -5,7 +5,7 @@ import com.pi4j.io.gpio.PinMode
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent
 import com.pi4j.io.gpio.impl.GpioPinImpl
 import gpio4s._
-import picfg.PinDef
+import picfg.io.PinDef
 
 /**
  * Actor interface to Pi4j GPIO

@@ -4,7 +4,7 @@ import akka.actor._
 import com.typesafe.config.Config
 import gpio4s.Device.{DeviceInstallFailed, DeviceInstalled, InstallDevice}
 import gpio4s.PiModels.PiModel
-import picfg.RichPins
+import picfg.io.RichPins
 
 import scala.collection.mutable
 

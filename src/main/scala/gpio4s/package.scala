@@ -1,6 +1,8 @@
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 import com.typesafe.config.Config
-import picfg._
+import picfg.dsl._
+import picfg.dsl.PinNumberBuilder
+import picfg.io.PinDef
 
 
 package object gpio4s {

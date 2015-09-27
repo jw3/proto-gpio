@@ -5,7 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import devices.RelaySS1982a._
 import gpio4s.{Device, DeviceInfo, DigitalWrite, PinAllocation}
 import net.ceedubs.ficus.Ficus._
-import picfg.Directions.input
+import picfg.dsl._
 
 
 object RelaySS1982a {

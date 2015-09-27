@@ -1,12 +1,10 @@
 package picfg
 
 import org.scalatest.{Matchers, WordSpecLike}
-import picfg.DigitalState.hi
-import picfg.Directions.output
-import picfg.DigitalState.hi
-import picfg.Modes.digital
-import picfg.Pulls.down
-import picfg._
+import picfg.dsl.Modes.digital
+import picfg.dsl._
+import picfg.io._
+
 
 /**
  * @author wassj

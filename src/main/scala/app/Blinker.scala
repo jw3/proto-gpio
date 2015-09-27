@@ -3,7 +3,7 @@ package app
 import akka.actor._
 import gpio4s._
 import gpio4s.pi4j._
-import picfg.Directions.output
+import picfg.dsl._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.DurationInt
