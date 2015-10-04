@@ -26,11 +26,6 @@ object io {
                 initialState(cfg),
                 pulls(cfg))
         }
-
-        def eachPin(fn: PinCfg => Unit): Config = {
-            pins.foreach(fn)
-            conf
-        }
     }
 
     private[gpiocfg] def layout(str: String): Option[Layout] = str match {

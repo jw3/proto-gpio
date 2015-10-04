@@ -1,7 +1,10 @@
 package gpiocfg
 
 import com.typesafe.config.Config
-import gpiocfg.dsl.{AnalogInitializer, DigitalInitializer, PinModeBuilder, PinNumberBuilder}
+import gpiocfg.dsl._
+
+import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
  * DSL describing the configuration of GPIO pins
@@ -9,18 +12,13 @@ import gpiocfg.dsl.{AnalogInitializer, DigitalInitializer, PinModeBuilder, PinNu
  * usage:
  *
  * gpio { pin =>
- * pin number 1 digital input
- * pin nuber 2 analog output
+ *   pin number 1 digital input
+ *   pin nuber 2 analog output
  * }
- *
- *
- *
- *
  *
  * @author wassj
  */
 object dsl {
-
     /**
      * entrypoint to DSL
      * @param fn Function that configures the builder
@@ -35,7 +33,6 @@ object dsl {
 
     /**
      * describes a gpio numbering scheme
-     * todo;; this will be opened up to be client extensible
      */
     sealed trait Layout extends DslComponent
     case object bcom extends Layout
@@ -102,6 +99,16 @@ object dsl {
     trait AnalogInitializer extends Initializer {
         def value(v: Double): Initializer
     }
+
+    object ConfigKeys {
+        val layout = "layout"
+        val number = "number"
+        val mode = "mode"
+        val direction = "direction"
+        val version = "version"
+        val init = "set"
+        val pull = "pull"
+    }
 }
 
 // internal API
@@ -111,26 +118,26 @@ sealed trait DslComponent extends Product {
 }
 
 // default implementation of the dsl
-private class PinBuilder extends PinNumberBuilder with PinModeBuilder with DigitalInitializer with AnalogInitializer {
+private class PinBuilder(layout: Layout = pi4j) extends PinNumberBuilder with PinModeBuilder with DigitalInitializer with AnalogInitializer {
     import com.typesafe.config.{ConfigFactory => cf, ConfigValueFactory => cvf}
     import gpiocfg.dsl._
 
-    import scala.collection.JavaConversions._
+    val pins = mutable.Set[Int]()
+    val modes = mutable.Map[Int, Mode]()
+    val directions = mutable.Map[Int, Direction]()
+    val values = mutable.Map[Int, AnyRef]()
+    val pulls = mutable.Map[Int, Pull]()
 
     var num: Int = -1
-    var layout: Layout = pi4j
-    val pins = collection.mutable.Set[Int]()
-    val modes = collection.mutable.Map[Int, Mode]()
-    val directions = collection.mutable.Map[Int, Direction]()
-    val values = collection.mutable.Map[Int, AnyRef]()
-    val pulls = collection.mutable.Map[Int, Pull]()
 
     def value(v: Double): Initializer = {
         values(num) = Double.box(v)
         this
     }
 
-    def pull(dir: Pull): Unit = pulls(num) = dir
+    def pull(dir: Pull): Unit = {
+        pulls(num) = dir
+    }
 
     def number(num: Int) = {
         // bounds check valid pin 0-?
@@ -161,20 +168,20 @@ private class PinBuilder extends PinNumberBuilder with PinModeBuilder with Digit
     def build: Config = {
         num = -1
 
-        val map = collection.mutable.Map[String, AnyRef]()
-        map("version") = Int.box(1)
-        map("layout") = layout.uid
+        val map = mutable.Map[String, AnyRef]()
+        map(ConfigKeys.version) = Int.box(1)
+        map(ConfigKeys.layout) = layout.uid
 
         val pinout = for (pin <- pins) yield {
-            val pinmap = collection.mutable.Map[String, AnyRef]()
-            pinmap("number") = Int.box(pin)
-            pinmap("mode") = modes(pin).uid
-            pinmap("direction") = directions(pin).uid
-            values.get(pin) foreach {
-                case v: java.lang.Double => pinmap("set") = Double.box(v)
-                case v: DigitalState => pinmap("set") = v.uid
+            val pinmap = mutable.Map[String, AnyRef]()
+            pinmap(ConfigKeys.number) = Int.box(pin)
+            pinmap(ConfigKeys.mode) = modes(pin).uid
+            pinmap(ConfigKeys.direction) = directions(pin).uid
+            values.get(pin).foreach {
+                case v: java.lang.Double => pinmap(ConfigKeys.init) = Double.box(v)
+                case v: DigitalState => pinmap(ConfigKeys.init) = v.uid
             }
-            pulls.get(pin).foreach { v => pinmap("pull") = v.uid }
+            pulls.get(pin).foreach { v => pinmap(ConfigKeys.pull) = v.uid }
             cvf.fromMap(pinmap)
         }
 

@@ -10,7 +10,7 @@ import gpiocfg.io._
  * @author wassj
  */
 class ConfSpec extends WordSpecLike with Matchers {
-    "digital configurations" should {
+    "bean access" should {
         "basic" in {
             val conf = gpio {_ number 0 digital output}
             val pin = conf.pins.head
