@@ -3,10 +3,10 @@ package gpio4s
 import akka.actor.{ActorContext, ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import gpio4s.PiModels.bRev2
+import gpio4s.gpiocfg.CfgDSL._
+import gpio4s.gpiocfg.CfgIO.RichPins
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{Matchers, WordSpecLike}
-import gpiocfg.dsl._
-import gpiocfg.io.RichPins
 
 
 /**

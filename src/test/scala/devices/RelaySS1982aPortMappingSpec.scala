@@ -5,9 +5,9 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import com.typesafe.config.ConfigFactory
 import devices.RelaySS1982a.{In1, In2, In3, In4}
 import gpio4s.PinAllocation
+import gpio4s.gpiocfg.CfgDSL._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{Matchers, WordSpecLike}
-import gpiocfg.dsl._
 
 class RelaySS1982aPortMappingSpec extends TestKit(ActorSystem(getClass.getSimpleName.dropRight(1)))
                                           with ImplicitSender with WordSpecLike with Matchers with MockFactory {

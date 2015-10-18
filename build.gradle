@@ -19,6 +19,7 @@ buildscript {
 repositories {
     mavenLocal()
     mavenCentral()
+    maven { url "https://dl.bintray.com/jw3/maven" }
 }
 
 dependencies {
@@ -42,6 +43,8 @@ dependencies {
     compile 'org.openrdf.sesame:sesame-repository-sail:4.0.0-M1'
 
     compile 'io.airlift:airline:0.7'
+
+    compile 'gpio4s:gpiocfg_2.11:0.1'
 }
 
 ssh.settings {
@@ -56,13 +59,13 @@ remotes {
         role 'master'
         host = '192.168.0.12'
         user = remoteUsername
-        password= remotePassword
+        password = remotePassword
     }
     worker01 {
         role 'worker'
         host = '192.168.0.13'
         user = remoteUsername
-        password= remotePassword
+        password = remotePassword
     }
 }
 
@@ -73,7 +76,7 @@ task prepareScripts(type: Copy) {
     eachFile { println("\t- ${it.name}") }
 }
 
-task deploy (group: 'distribution', dependsOn: [clean, distTar, prepareScripts]) {
+task deploy(group: 'distribution', dependsOn: [clean, distTar, prepareScripts]) {
     def dist = "$buildDir/distributions/${distributions.main.baseName}.tar"
 
     ssh.run {
